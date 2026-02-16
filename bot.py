@@ -1,3 +1,5 @@
+print("CLOUD VERSION 2")
+
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import logging
