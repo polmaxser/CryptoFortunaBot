@@ -135,7 +135,18 @@ async def telegram_webhook(request: Request):
     update = types.Update.to_object(update_data)
     await dp.process_update(update)
     return {"ok": True}
+@app.get("/")
+async def root():
+    return {"status": "ok"}
 
+@app.get("/ip")
+async def ip_check():
+    return {"status": "alive"}
+
+@app.get("/robots.txt")
+async def robots():
+    return "User-agent: *\nDisallow: /"
+    
 @app.get("/")
 async def root():
     return {"status": "Crypto Fortuna Bot is running"}
