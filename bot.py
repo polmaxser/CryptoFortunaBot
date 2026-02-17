@@ -133,6 +133,7 @@ app = FastAPI()
 async def telegram_webhook(request: Request):
     update_data = await request.json()
     update = types.Update.to_object(update_data)
+    Bot.set_current(bot)
     await dp.process_update(update)
     return {"ok": True}
 @app.get("/")
