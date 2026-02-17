@@ -5,12 +5,12 @@ import random
 import requests
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
-from aiogram.utils import executor
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 
 # === НАСТРОЙКИ ===
-API_TOKEN = os.getenv("8533386323:AAE4ztLPhnBguDvJjaSM-dcKVRAsW4m-pzQ"
-WALLET_ADDRESS = "TV8V9k6FsydVRzHwgtYXoNVTTcqF1UvFyk"
+API_TOKEN = os.getenv("BOT_TOKEN")
+WALLET_ADDRESS = "TV8V9k6FsydVRzHwgtYXoNVTTcqF1UvFyk
 ADMIN_ID = 8333494757
 ENTRY_FEE = 5
 
@@ -33,8 +33,6 @@ cursor.execute("""
 conn.commit()
 
 # === КЛАВИАТУРА ===
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 keyboard.add(
     KeyboardButton("🎟 Участвовать"),
@@ -43,8 +41,7 @@ keyboard.add(
 )
 keyboard.add(KeyboardButton("🎲 Выбрать победителя"))
 
-# === ХЕНДЛЕРЫ (ОБРАБОТЧИКИ КОМАНД) ===
-
+# === ХЕНДЛЕРЫ ===
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     await message.answer(
@@ -125,10 +122,8 @@ async def add_participant(message: types.Message):
     except sqlite3.IntegrityError:
         await message.answer("⚠️ Этот участник уже добавлен")
 
-# === ОБРАБОТЧИК TXID (ВРЕМЕННЫЙ) ===
 @dp.message_handler()
 async def handle_txid(message: types.Message):
-    # Позже здесь будет проверка через Tronscan API
     await message.answer("📝 Твой TXID получен. После проверки ты будешь добавлен в розыгрыш.")
 
 # === WEBHOOK ЧАСТЬ ===
@@ -136,7 +131,6 @@ app = FastAPI()
 
 @app.post(f"/webhook/{API_TOKEN}")
 async def telegram_webhook(request: Request):
-    """Сюда Telegram будет присылать все обновления"""
     update_data = await request.json()
     update = types.Update.to_object(update_data)
     await dp.process_update(update)
@@ -148,14 +142,16 @@ async def root():
 
 @app.on_event("startup")
 async def on_startup():
-    """При запуске устанавливаем webhook"""
-    webhook_url = f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN')}/webhook/{API_TOKEN}"
+    railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+    if not railway_domain:
+        logging.error("RAILWAY_PUBLIC_DOMAIN not set!")
+        return
+    webhook_url = f"https://{railway_domain}/webhook/{API_TOKEN}"
     await bot.set_webhook(webhook_url)
-    logging.info(f"Webhook установлен на {webhook_url}")
+    logging.info(f"✅ Webhook установлен на {webhook_url}")
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    """При остановке удаляем webhook"""
     await bot.delete_webhook()
 
 if __name__ == "__main__":
