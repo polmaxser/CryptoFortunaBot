@@ -22,7 +22,7 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
 # === БАЗА ДАННЫХ ===
-conn = sqlite3.connect("/data/crypto_fortuna.db", check_same_thread=False)
+conn = sqlite3.connect("crypto_fortuna.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS participants (
