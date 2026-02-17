@@ -10,7 +10,7 @@ import uvicorn
 
 # === НАСТРОЙКИ ===
 API_TOKEN = os.getenv("BOT_TOKEN")
-WALLET_ADDRESS = "TV8V9k6FsydVRzHwgtYXoNVTTcqF1UvFyk
+WALLET_ADDRESS = "TV8V9k6FsydVRzHwgtYXoNVTTcqF1UvFyk"
 ADMIN_ID = 8333494757
 ENTRY_FEE = 5
 
