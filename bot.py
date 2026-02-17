@@ -8,6 +8,48 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 
+import requests
+import time
+
+def check_trc20_payment(txid, expected_amount=5, expected_address=WALLET_ADDRESS):
+    """Проверяет транзакцию USDT TRC20 через Tronscan API"""
+    try:
+        # Ждём 10 секунд, чтобы транзакция точно попала в блокчейн
+        time.sleep(10)
+        
+        url = f"https://apilist.tronscan.org/api/transaction-info?hash={txid}"
+        response = requests.get(url)
+        
+        if response.status_code != 200:
+            return False, "Ошибка при обращении к блокчейну"
+        
+        data = response.json()
+        
+        # Проверяем, что это перевод токена
+        if 'tokenTransfer' not in data or not data['tokenTransfer']:
+            return False, "Это не транзакция с токеном"
+        
+        transfer = data['tokenTransfer']
+        
+        # Проверяем, что это USDT (contract address)
+        usdt_contract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        if transfer.get('contract') != usdt_contract:
+            return False, "Это не USDT"
+        
+        # Проверяем адрес получателя
+        if transfer.get('to_address') != expected_address:
+            return False, "Неверный адрес получателя"
+        
+        # Проверяем сумму (в USDT 6 знаков после запятой)
+        amount = int(transfer.get('amount', 0)) / 1_000_000
+        if amount < expected_amount:
+            return False, f"Недостаточно средств: {amount} USDT (нужно {expected_amount})"
+        
+        return True, f"OK: {amount} USDT"
+        
+    except Exception as e:
+        return False, f"Ошибка: {str(e)}"
+
 # === НАСТРОЙКИ ===
 API_TOKEN = os.getenv("BOT_TOKEN")
 WALLET_ADDRESS = "TV8V9k6FsydVRzHwgtYXoNVTTcqF1UvFyk"
