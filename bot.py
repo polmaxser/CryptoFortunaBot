@@ -9,9 +9,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 
-import requests
-import time
-
 def check_trc20_payment(txid, expected_amount=5, expected_address=None):
     """Проверяет транзакцию USDT TRC20 через Tronscan API"""
     if expected_address is None:
@@ -70,12 +67,26 @@ dp = Dispatcher(bot)
 # === БАЗА ДАННЫХ ===
 conn = sqlite3.connect("crypto_fortuna.db", check_same_thread=False)
 cursor = conn.cursor()
+
+# Таблица участников
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS participants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE
     )
 """)
+
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS transactions (
+        txid TEXT PRIMARY KEY,
+        user_id INTEGER,
+        username TEXT,
+        amount REAL,
+        status TEXT DEFAULT 'confirmed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
 conn.commit()
 
 # === КЛАВИАТУРА ===
@@ -170,7 +181,48 @@ async def add_participant(message: types.Message):
 
 @dp.message_handler()
 async def handle_txid(message: types.Message):
-    await message.answer("📝 Твой TXID получен. После проверки ты будешь добавлен в розыгрыш.")
+    txid = message.text.strip()
+    user_id = message.from_user.id
+    username = message.from_user.username or f"user_{user_id}"
+    
+    # Проверяем, не использовался ли уже этот TXID
+    cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid,))
+    if cursor.fetchone():
+        await message.answer("❌ Этот TXID уже был использован")
+        return
+    
+    # Отправляем сообщение о начале проверки
+    wait_msg = await message.answer("🔄 Проверяю транзакцию... Это может занять до 20 секунд")
+    
+    # Проверяем транзакцию
+    success, msg = check_trc20_payment(txid)
+    
+    if success:
+        # Добавляем пользователя в participants
+        try:
+            cursor.execute(
+                "INSERT INTO participants (username) VALUES (?)", 
+                (f"@{username}",)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # Пользователь уже есть в participants
+            pass
+        
+        # Сохраняем TXID в базу
+        cursor.execute(
+            "INSERT INTO transactions (txid, user_id, username, amount) VALUES (?, ?, ?, ?)",
+            (txid, user_id, username, 5)
+        )
+        conn.commit()
+        
+        await message.answer(f"✅ Транзакция подтверждена!\n"
+                            f"Ты добавлен в розыгрыш 🎟")
+    else:
+        await message.answer(f"❌ Ошибка: {msg}")
+    
+    # Удаляем сообщение о проверке
+    await wait_msg.delete()
 
 # === WEBHOOK ЧАСТЬ ===
 app = FastAPI()
