@@ -12,8 +12,11 @@ import uvicorn
 import requests
 import time
 
-def check_trc20_payment(txid, expected_amount=5, expected_address=WALLET_ADDRESS):
+def check_trc20_payment(txid, expected_amount=5, expected_address=None):
     """Проверяет транзакцию USDT TRC20 через Tronscan API"""
+    if expected_address is None:
+        expected_address = WALLET_ADDRESS  # берём глобальную переменную
+    
     try:
         # Ждём 10 секунд, чтобы транзакция точно попала в блокчейн
         time.sleep(10)
@@ -39,7 +42,7 @@ def check_trc20_payment(txid, expected_amount=5, expected_address=WALLET_ADDRESS
         
         # Проверяем адрес получателя
         if transfer.get('to_address') != expected_address:
-            return False, "Неверный адрес получателя"
+            return False, f"Неверный адрес получателя. Ожидался: {expected_address}, получен: {transfer.get('to_address')}"
         
         # Проверяем сумму (в USDT 6 знаков после запятой)
         amount = int(transfer.get('amount', 0)) / 1_000_000
