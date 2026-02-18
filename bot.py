@@ -3,6 +3,7 @@ import logging
 import sqlite3
 import random
 import requests
+import time
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
@@ -178,29 +179,22 @@ async def telegram_webhook(request: Request):
     Bot.set_current(bot)
     await dp.process_update(update)
     return {"ok": True}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "time": time.time()}
+
 @app.get("/")
 async def root():
-    return {"status": "ok"}
-
-@app.get("/ip")
-async def ip_check():
-    return {"status": "alive"}
-
-@app.get("/robots.txt")
-async def robots():
-    return "User-agent: *\nDisallow: /"
-    
-@app.get("/")
-async def root():
-    return {"status": "Crypto Fortuna Bot is running"}
+    return {"status": "Crypto Fortuna Bot is running on Render"}
 
 @app.on_event("startup")
 async def on_startup():
-    railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
-    if not railway_domain:
-        logging.error("RAILWAY_PUBLIC_DOMAIN not set!")
+    render_url = os.getenv("RENDER_EXTERNAL_URL")
+    if not render_url:
+        logging.error("❌ RENDER_EXTERNAL_URL не найден!")
         return
-    webhook_url = f"https://{railway_domain}/webhook/{API_TOKEN}"
+    webhook_url = f"{render_url}/webhook/{API_TOKEN}"
     await bot.set_webhook(webhook_url)
     logging.info(f"✅ Webhook установлен на {webhook_url}")
 
