@@ -4,64 +4,21 @@ import sqlite3
 import random
 import requests
 import time
+import asyncio
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 
-def check_bsc_payment(txid, expected_amount=5, expected_address=None):
-    """Проверяет транзакцию USDT BEP-20 через BscScan API"""
-    if expected_address is None:
-        expected_address = WALLET_ADDRESS
-    
-    try:
-        # Ждём 10 секунд для подтверждения
-        time.sleep(10)
-        
-        # Используем BscScan API (нужен API key) [citation:3]
-        api_key = os.getenv("BSCSCAN_API_KEY")  # нужно добавить переменную
-        url = f"https://api.bscscan.com/api?module=account&action=tokentx&txhash={txid}&apikey={api_key}"
-        response = requests.get(url)
-        
-        if response.status_code != 200:
-            return False, "Ошибка при обращении к BscScan"
-        
-        data = response.json()
-        if data['status'] != '1' or not data['result']:
-            return False, "Транзакция не найдена"
-        
-        tx = data['result'][0]
-        
-        # Проверяем, что это USDT (контракт USDT в BSC)
-        usdt_contract = "0x55d398326f99059ff775485246999027b3197955"  # BSC USDT
-        
-        if tx['contractAddress'].lower() != usdt_contract.lower():
-            return False, "Это не USDT"
-        
-        # Проверяем адрес получателя
-        if tx['to'].lower() != expected_address.lower():
-            return False, "Неверный адрес получателя"
-        
-        # Проверяем сумму (в BEP-20 токенах 18 знаков)
-        amount = int(tx['value']) / 10**18
-        if amount < expected_amount:
-            return False, f"Недостаточно средств: {amount} USDT"
-        
-        return True, f"OK: {amount} USDT"
-        
-    except Exception as e:
-        return False, f"Ошибка: {str(e)}"
-
 # === НАСТРОЙКИ ===
 API_TOKEN = os.getenv("BOT_TOKEN")
-WALLET_ADDRESS = "TV8V9k6FsydVRzHwgtYXoNVTTcqF1UvFyk"
+WALLET_ADDRESS = "0xFd434c30aCeF2815fE895a2144b11122e31c0B93"
 ADMIN_ID = 8333494757
 ENTRY_FEE = 5
+CHANNEL_ID = "@real_crypto_fortuna"
 
 # Логирование
 logging.basicConfig(level=logging.INFO)
-
-CHANNEL_ID = "@real_crypto_fortuna"
 
 # === ИНИЦИАЛИЗАЦИЯ БОТА ===
 bot = Bot(token=API_TOKEN)
@@ -89,7 +46,6 @@ cursor.execute("""
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 """)
-
 conn.commit()
 
 # === КЛАВИАТУРА ===
@@ -101,7 +57,143 @@ keyboard.add(
 )
 keyboard.add(KeyboardButton("🎲 Выбрать победителя"))
 
-# === ХЕНДЛЕРЫ ===
+# === ФУНКЦИИ ПРОВЕРКИ ПЛАТЕЖЕЙ BSC ===
+def check_bsc_payment(txid, expected_amount=5, expected_address=None):
+    """Проверяет транзакцию USDT BEP-20 через BscScan API"""
+    if expected_address is None:
+        expected_address = WALLET_ADDRESS
+    
+    try:
+        time.sleep(10)
+        api_key = os.getenv("BSCSCAN_API_KEY")
+        url = f"https://api.bscscan.com/api?module=account&action=tokentx&txhash={txid}&apikey={api_key}"
+        response = requests.get(url)
+        
+        if response.status_code != 200:
+            return False, "Ошибка при обращении к BscScan"
+        
+        data = response.json()
+        if data['status'] != '1' or not data['result']:
+            return False, "Транзакция не найдена"
+        
+        tx = data['result'][0]
+        usdt_contract = "0x55d398326f99059ff775485246999027b3197955"
+        
+        if tx['contractAddress'].lower() != usdt_contract.lower():
+            return False, "Это не USDT"
+        
+        if tx['to'].lower() != expected_address.lower():
+            return False, "Неверный адрес получателя"
+        
+        amount = int(tx['value']) / 10**18
+        if amount < expected_amount:
+            return False, f"Недостаточно средств: {amount} USDT"
+        
+        return True, f"OK: {amount} USDT"
+        
+    except Exception as e:
+        return False, f"Ошибка: {str(e)}"
+
+# === ФУНКЦИИ ДЛЯ ПОЛУЧЕНИЯ БЛОКОВ BSC ===
+def get_current_bsc_block():
+    """Получает номер последнего блока BSC"""
+    try:
+        api_key = os.getenv("BSCSCAN_API_KEY")
+        url = f"https://api.bscscan.com/api?module=block&action=getblocknobytime&timestamp=latest&closest=before&apikey={api_key}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return int(data['result'])
+    except Exception as e:
+        logging.error(f"Ошибка получения блока BSC: {e}")
+    return None
+
+def get_bsc_block_hash(block_number):
+    """Получает хэш блока BSC по номеру"""
+    try:
+        api_key = os.getenv("BSCSCAN_API_KEY")
+        url = f"https://api.bscscan.com/api?module=block&action=getblockreward&blockno={block_number}&apikey={api_key}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return data['result']['blockHash']
+    except Exception as e:
+        logging.error(f"Ошибка получения хэша BSC: {e}")
+    return None
+
+# === ФУНКЦИИ ДЛЯ ПРОВЕДЕНИЯ РОЗЫГРЫША ===
+async def publish_round_info(chat_id, round_number, participants, target_block):
+    """Публикует информацию о раунде перед розыгрышем"""
+    tickets = []
+    for i, user in enumerate(participants, 1):
+        tickets.append(f"{i}. {user}")
+    
+    tickets_text = "\n".join(tickets[:20])
+    if len(participants) > 20:
+        tickets_text += f"\n... и ещё {len(participants) - 20}"
+    
+    message = (
+        f"🎲 **РОЗЫГРЫШ #{round_number}**\n\n"
+        f"🎟 **Всего билетов:** {len(participants)}\n\n"
+        f"**Список участников:**\n{tickets_text}\n\n"
+        f"🔐 **Прозрачный выбор победителя:**\n"
+        f"1️⃣ Будет взят хэш блока BSC **#{target_block}**\n"
+        f"2️⃣ Победитель = хэш % {len(participants)}\n"
+        f"3️⃣ Результат появится здесь сразу после получения блока\n\n"
+        f"⏳ Ожидайте розыгрыша..."
+    )
+    await bot.send_message(chat_id, message, parse_mode="Markdown")
+
+async def execute_provable_draw_bsc(chat_id, round_number, participants, target_block):
+    """Проводит provably fair розыгрыш на BSC"""
+    wait_msg = await bot.send_message(chat_id, "⏳ **Получаю хэш блока BSC...**", parse_mode="Markdown")
+    
+    block_hash = None
+    for attempt in range(36):
+        await asyncio.sleep(5)
+        block_hash = get_bsc_block_hash(target_block)
+        if block_hash:
+            break
+        if attempt % 6 == 0 and attempt > 0:
+            await bot.edit_message_text(
+                f"⏳ **Получаю хэш блока BSC...** (попытка {attempt//6+1}/6)",
+                chat_id, wait_msg.message_id, parse_mode="Markdown"
+            )
+    
+    if not block_hash:
+        await bot.edit_message_text(
+            "❌ **Ошибка:** не удалось получить хэш блока. Попробуйте позже.",
+            chat_id, wait_msg.message_id, parse_mode="Markdown"
+        )
+        return None
+    
+    hash_int = int(block_hash, 16)
+    winner_index = hash_int % len(participants)
+    winner = participants[winner_index]
+    
+    result = (
+        f"🏆 **РОЗЫГРЫШ #{round_number} ЗАВЕРШЁН!**\n\n"
+        f"✅ **Блок BSC:** #{target_block}\n"
+        f"🔗 **Хэш блока:**\n`{block_hash[:32]}...`\n\n"
+        f"**Расчёт:**\n"
+        f"`{block_hash[:16]}...` (хэш) % {len(participants)} = **{winner_index + 1}**\n\n"
+        f"🎉 **Победитель: Билет №{winner_index + 1} — {winner}**\n\n"
+        f"🔍 **[Проверить на BscScan](https://bscscan.com/block/{target_block})**"
+    )
+    
+    await bot.edit_message_text(
+        result, chat_id, wait_msg.message_id,
+        parse_mode="Markdown", disable_web_page_preview=True
+    )
+    
+    await bot.send_message(
+        CHANNEL_ID,
+        f"🎲 Результат розыгрыша #{round_number}: {winner}",
+        parse_mode="Markdown"
+    )
+    return winner
+
+# === ОСНОВНЫЕ ОБРАБОТЧИКИ ===
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     await message.answer(
@@ -115,7 +207,7 @@ async def start(message: types.Message):
 async def participate(message: types.Message):
     await message.answer(
         f"🔹 Для участия переведи {ENTRY_FEE} USDT\n"
-        f"🔹 Сеть: TRC20\n"
+        f"🔹 Сеть: BSC (BEP-20)\n"
         f"🔹 Адрес:\n`{WALLET_ADDRESS}`\n\n"
         "📤 После оплаты отправь сюда TXID (хэш транзакции)",
         parse_mode="Markdown"
@@ -184,12 +276,10 @@ async def add_participant(message: types.Message):
 
 @dp.message_handler(commands=['start_draw'])
 async def cmd_start_draw(message: types.Message):
-    """Запускает прозрачный розыгрыш (только для админа)"""
     if message.from_user.id != ADMIN_ID:
         await message.answer("❌ Эта команда только для админа")
         return
     
-    # Получаем список участников
     cursor.execute("SELECT username FROM participants")
     participants = [f"@{row[0]}" for row in cursor.fetchall()]
     
@@ -197,29 +287,22 @@ async def cmd_start_draw(message: types.Message):
         await message.answer("❌ Для розыгрыша нужно минимум 2 участника")
         return
     
-    # Определяем номер раунда
     round_number = random.randint(1000, 9999)
     
-    # Получаем текущий блок и вычисляем целевой
-    current_block = get_current_tron_block()
+    current_block = get_current_bsc_block()
     if not current_block:
-        await message.answer("❌ Не удалось получить номер блока TRON")
+        await message.answer("❌ Не удалось получить номер блока BSC")
         return
     
     target_block = current_block + 20
     
-    # Публикуем информацию в канал
     await publish_round_info(CHANNEL_ID, round_number, participants, target_block)
     await message.answer(f"✅ Информация о розыгрыше #{round_number} опубликована в канале")
-    
     await message.answer(f"⏳ Розыгрыш состоится через 2 минуты (блок #{target_block})")
     
-    # Ждём 2 минуты
-    import asyncio
     await asyncio.sleep(120)
     
-    # 👇 ЭТИ СТРОКИ ДОЛЖНЫ БЫТЬ С ОТСТУПОМ (4 пробела)
-    winner = await execute_provable_draw(CHANNEL_ID, round_number, participants, target_block)
+    winner = await execute_provable_draw_bsc(CHANNEL_ID, round_number, participants, target_block)
     
     if winner:
         cursor.execute("DELETE FROM participants")
@@ -234,20 +317,16 @@ async def handle_txid(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username or f"user_{user_id}"
     
-    # Проверяем, не использовался ли уже этот TXID
     cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid,))
     if cursor.fetchone():
         await message.answer("❌ Этот TXID уже был использован")
         return
     
-    # Отправляем сообщение о начале проверки
     wait_msg = await message.answer("🔄 Проверяю транзакцию... Это может занять до 20 секунд")
     
-    # Проверяем транзакцию
-    success, msg = check_trc20_payment(txid)
+    success, msg = check_bsc_payment(txid)
     
     if success:
-        # Добавляем пользователя в participants
         try:
             cursor.execute(
                 "INSERT INTO participants (username) VALUES (?)", 
@@ -255,135 +334,19 @@ async def handle_txid(message: types.Message):
             )
             conn.commit()
         except sqlite3.IntegrityError:
-            # Пользователь уже есть в participants
             pass
         
-        # Сохраняем TXID в базу
         cursor.execute(
             "INSERT INTO transactions (txid, user_id, username, amount) VALUES (?, ?, ?, ?)",
             (txid, user_id, username, 5)
         )
         conn.commit()
         
-        await message.answer(f"✅ Транзакция подтверждена!\n"
-                            f"Ты добавлен в розыгрыш 🎟")
+        await message.answer(f"✅ Транзакция подтверждена!\nТы добавлен в розыгрыш 🎟")
     else:
         await message.answer(f"❌ Ошибка: {msg}")
     
-    # Удаляем сообщение о проверке
     await wait_msg.delete()
-
-# === PROVABLY FAIR РОЗЫГРЫШ ===
-import hashlib
-import requests
-import time
-
-def get_current_tron_block():
-    """Получает номер последнего блока TRON через рабочий API Tronscan"""
-    try:
-        # Используем API Tronscan (работает стабильно)
-        url = "https://apilist.tronscan.org/api/block/latest"
-        response = requests.get(url, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data['number']
-        else:
-            logging.error(f"Ошибка API: {response.status_code}")
-            return None
-    except Exception as e:
-        logging.error(f"Ошибка получения блока: {e}")
-        return None
-
-def get_tron_block_hash(block_number):
-    """Получает хэш блока TRON по номеру через рабочий API"""
-    try:
-        url = f"https://apilist.tronscan.org/api/block?number={block_number}"
-        response = requests.get(url, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data['hash']
-    except Exception as e:
-        logging.error(f"Ошибка получения хэша: {e}")
-    return None
-
-async def publish_round_info(chat_id, round_number, participants, target_block):
-    """Публикует информацию о раунде перед розыгрышем"""
-    
-    # Формируем список участников с номерами
-    tickets = []
-    for i, user in enumerate(participants, 1):
-        tickets.append(f"{i}. {user}")
-    
-    tickets_text = "\n".join(tickets[:20])  # покажем только 20 первых, если много
-    if len(participants) > 20:
-        tickets_text += f"\n... и ещё {len(participants) - 20}"
-    
-    message = (
-        f"🎲 **РОЗЫГРЫШ #{round_number}**\n\n"
-        f"🎟 **Всего билетов:** {len(participants)}\n\n"
-        f"**Список участников:**\n{tickets_text}\n\n"
-        f"🔐 **Прозрачный выбор победителя:**\n"
-        f"1️⃣ Будет взят хэш блока TRON **#{target_block}**\n"
-        f"2️⃣ Победитель = хэш % {len(participants)}\n"
-        f"3️⃣ Результат появится здесь сразу после получения блока\n\n"
-        f"⏳ Ожидайте розыгрыша..."
-    )
-    
-    await bot.send_message(chat_id, message, parse_mode="Markdown")
-
-async def execute_provable_draw(chat_id, round_number, participants, target_block):
-    """Проводит provably fair розыгрыш и публикует результат"""
-    
-    # Отправляем сообщение о начале
-    wait_msg = await bot.send_message(chat_id, "⏳ **Получаю хэш блока TRON...**", parse_mode="Markdown")
-    
-    # Ждём блок (максимум 3 минуты)
-    block_hash = None
-    for attempt in range(36):  # 36 * 5 сек = 3 минуты
-        time.sleep(5)
-        block_hash = get_tron_block_hash(target_block)
-        if block_hash:
-            break
-    
-    if not block_hash:
-        await bot.edit_message_text(
-            "❌ **Ошибка:** не удалось получить хэш блока. Попробуйте позже.",
-            chat_id, wait_msg.message_id, parse_mode="Markdown"
-        )
-        return None
-    
-    # Вычисляем победителя
-    hash_int = int(block_hash, 16)
-    winner_index = hash_int % len(participants)
-    winner = participants[winner_index]
-    
-    # Формируем результат
-    result = (
-        f"🏆 **РОЗЫГРЫШ #{round_number} ЗАВЕРШЁН!**\n\n"
-        f"✅ **Блок TRON:** #{target_block}\n"
-        f"🔗 **Хэш блока:**\n`{block_hash[:32]}...`\n\n"
-        f"**Расчёт:**\n"
-        f"`{block_hash[:16]}...` (хэш) % {len(participants)} = **{winner_index + 1}**\n\n"
-        f"🎉 **Победитель: Билет №{winner_index + 1} — {winner}**\n\n"
-        f"🔍 **[Проверить на Tronscan](https://tronscan.org/#/block/{target_block})**"
-    )
-    
-    # Обновляем сообщение с результатом
-    await bot.edit_message_text(
-        result, chat_id, wait_msg.message_id,
-        parse_mode="Markdown", disable_web_page_preview=True
-    )
-    
-    # Отправляем результат в канал
-    await bot.send_message(
-        CHANNEL_ID, 
-        f"🎲 Результат розыгрыша #{round_number}: {winner}",
-        parse_mode="Markdown"
-    )
-    
-    return winner
 
 # === WEBHOOK ЧАСТЬ ===
 app = FastAPI()
