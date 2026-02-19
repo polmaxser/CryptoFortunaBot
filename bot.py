@@ -60,6 +60,8 @@ ENTRY_FEE = 5
 # Логирование
 logging.basicConfig(level=logging.INFO)
 
+CHANNEL_ID = "@real_crypto_fortuna"
+
 # === ИНИЦИАЛИЗАЦИЯ БОТА ===
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
@@ -223,6 +225,157 @@ async def handle_txid(message: types.Message):
     
     # Удаляем сообщение о проверке
     await wait_msg.delete()
+
+@dp.message_handler(commands=['start_draw'])
+async def cmd_start_draw(message: types.Message):
+    """Запускает прозрачный розыгрыш (только для админа)"""
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    # Получаем список участников
+    cursor.execute("SELECT username FROM participants")
+    participants = [f"@{row[0]}" for row in cursor.fetchall()]
+    
+    if len(participants) < 2:
+        await message.answer("❌ Для розыгрыша нужно минимум 2 участника")
+        return
+    
+    # Определяем номер раунда
+    round_number = random.randint(1000, 9999)  # можно хранить в БД, но пока так
+    
+    # Получаем текущий блок и вычисляем целевой (через ~2 минуты)
+    current_block = get_current_tron_block()
+    if not current_block:
+        await message.answer("❌ Не удалось получить номер блока TRON")
+        return
+    
+    target_block = current_block + 20  # +20 блоков = ~1 минута
+    
+    # Публикуем информацию в канал
+    await publish_round_info(CHANNEL_ID, round_number, participants, target_block)
+    await message.answer(f"✅ Информация о розыгрыше #{round_number} опубликована в канале")
+    
+    # Запускаем розыгрыш через 2 минуты
+    await message.answer(f"⏳ Розыгрыш состоится через 2 минуты (блок #{target_block})")
+    
+    # Ждём до блока (упрощённо - просто 2 минуты)
+    import asyncio
+    await asyncio.sleep(120)
+    
+    # Проводим розыгрыш
+    winner = await execute_provable_draw(CHANNEL_ID, round_number, participants, target_block)
+    
+    # Очищаем участников
+    cursor.execute("DELETE FROM participants")
+    conn.commit()
+    
+    await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
+
+# === PROVABLY FAIR РОЗЫГРЫШ ===
+import hashlib
+import requests
+import time
+
+def get_current_tron_block():
+    """Получает номер последнего блока TRON"""
+    try:
+        url = "https://api.trongrid.io/v1/blocks?limit=1"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return data['data'][0]['block_number']
+    except Exception as e:
+        logging.error(f"Ошибка получения блока: {e}")
+    return None
+
+def get_tron_block_hash(block_number):
+    """Получает хэш блока TRON по номеру"""
+    try:
+        url = f"https://api.trongrid.io/v1/blocks/{block_number}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return data['blockID']
+    except Exception as e:
+        logging.error(f"Ошибка получения хэша: {e}")
+    return None
+
+async def publish_round_info(chat_id, round_number, participants, target_block):
+    """Публикует информацию о раунде перед розыгрышем"""
+    
+    # Формируем список участников с номерами
+    tickets = []
+    for i, user in enumerate(participants, 1):
+        tickets.append(f"{i}. {user}")
+    
+    tickets_text = "\n".join(tickets[:20])  # покажем только 20 первых, если много
+    if len(participants) > 20:
+        tickets_text += f"\n... и ещё {len(participants) - 20}"
+    
+    message = (
+        f"🎲 **РОЗЫГРЫШ #{round_number}**\n\n"
+        f"🎟 **Всего билетов:** {len(participants)}\n\n"
+        f"**Список участников:**\n{tickets_text}\n\n"
+        f"🔐 **Прозрачный выбор победителя:**\n"
+        f"1️⃣ Будет взят хэш блока TRON **#{target_block}**\n"
+        f"2️⃣ Победитель = хэш % {len(participants)}\n"
+        f"3️⃣ Результат появится здесь сразу после получения блока\n\n"
+        f"⏳ Ожидайте розыгрыша..."
+    )
+    
+    await bot.send_message(chat_id, message, parse_mode="Markdown")
+
+async def execute_provable_draw(chat_id, round_number, participants, target_block):
+    """Проводит provably fair розыгрыш и публикует результат"""
+    
+    # Отправляем сообщение о начале
+    wait_msg = await bot.send_message(chat_id, "⏳ **Получаю хэш блока TRON...**", parse_mode="Markdown")
+    
+    # Ждём блок (максимум 3 минуты)
+    block_hash = None
+    for attempt in range(36):  # 36 * 5 сек = 3 минуты
+        time.sleep(5)
+        block_hash = get_tron_block_hash(target_block)
+        if block_hash:
+            break
+    
+    if not block_hash:
+        await bot.edit_message_text(
+            "❌ **Ошибка:** не удалось получить хэш блока. Попробуйте позже.",
+            chat_id, wait_msg.message_id, parse_mode="Markdown"
+        )
+        return
+    
+    # Вычисляем победителя
+    hash_int = int(block_hash, 16)
+    winner_index = hash_int % len(participants)
+    winner = participants[winner_index]
+    
+    # Формируем результат
+    result = (
+        f"🏆 **РОЗЫГРЫШ #{round_number} ЗАВЕРШЁН!**\n\n"
+        f"✅ **Блок TRON:** #{target_block}\n"
+        f"🔗 **Хэш блока:**\n`{block_hash[:32]}...`\n\n"
+        f"**Расчёт:**\n"
+        f"`{block_hash[:16]}...` (хэш) % {len(participants)} = **{winner_index + 1}**\n\n"
+        f"🎉 **Победитель: Билет №{winner_index + 1} — {winner}**\n\n"
+        f"🔍 **[Проверить на Tronscan](https://tronscan.org/#/block/{target_block})**"
+    )
+    
+    # Обновляем сообщение с результатом
+    await bot.edit_message_text(
+        result, chat_id, wait_msg.message_id,
+        parse_mode="Markdown", disable_web_page_preview=True
+    )
+    
+    # Отправляем результат в канал
+    await bot.send_message(
+        CHANNEL_ID, 
+        f"🎲 Результат розыгрыша #{round_number}: {winner}",
+        parse_mode="Markdown"
+    )
+    
+    return winner
 
 # === WEBHOOK ЧАСТЬ ===
 app = FastAPI()
