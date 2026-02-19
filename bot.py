@@ -271,51 +271,6 @@ async def handle_txid(message: types.Message):
     # Удаляем сообщение о проверке
     await wait_msg.delete()
 
-@dp.message_handler(commands=['start_draw'])
-async def cmd_start_draw(message: types.Message):
-    """Запускает прозрачный розыгрыш (только для админа)"""
-    if message.from_user.id != ADMIN_ID:
-        return
-    
-    # Получаем список участников
-    cursor.execute("SELECT username FROM participants")
-    participants = [f"@{row[0]}" for row in cursor.fetchall()]
-    
-    if len(participants) < 2:
-        await message.answer("❌ Для розыгрыша нужно минимум 2 участника")
-        return
-    
-    # Определяем номер раунда
-    round_number = random.randint(1000, 9999)  # можно хранить в БД, но пока так
-    
-    # Получаем текущий блок и вычисляем целевой (через ~2 минуты)
-    current_block = get_current_tron_block()
-    if not current_block:
-        await message.answer("❌ Не удалось получить номер блока TRON")
-        return
-    
-    target_block = current_block + 20  # +20 блоков = ~1 минута
-    
-    # Публикуем информацию в канал
-    await publish_round_info(CHANNEL_ID, round_number, participants, target_block)
-    await message.answer(f"✅ Информация о розыгрыше #{round_number} опубликована в канале")
-    
-    # Запускаем розыгрыш через 2 минуты
-    await message.answer(f"⏳ Розыгрыш состоится через 2 минуты (блок #{target_block})")
-    
-    # Ждём до блока (упрощённо - просто 2 минуты)
-    import asyncio
-    await asyncio.sleep(120)
-    
-    # Проводим розыгрыш
-    winner = await execute_provable_draw(CHANNEL_ID, round_number, participants, target_block)
-    
-    # Очищаем участников
-    cursor.execute("DELETE FROM participants")
-    conn.commit()
-    
-    await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
-
 # === PROVABLY FAIR РОЗЫГРЫШ ===
 import hashlib
 import requests
