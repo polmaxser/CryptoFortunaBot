@@ -9,42 +9,43 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 
-def check_trc20_payment(txid, expected_amount=5, expected_address=None):
-    """Проверяет транзакцию USDT TRC20 через Tronscan API"""
+def check_bsc_payment(txid, expected_amount=5, expected_address=None):
+    """Проверяет транзакцию USDT BEP-20 через BscScan API"""
     if expected_address is None:
-        expected_address = WALLET_ADDRESS  # берём глобальную переменную
+        expected_address = WALLET_ADDRESS
     
     try:
-        # Ждём 10 секунд, чтобы транзакция точно попала в блокчейн
+        # Ждём 10 секунд для подтверждения
         time.sleep(10)
         
-        url = f"https://apilist.tronscan.org/api/transaction-info?hash={txid}"
+        # Используем BscScan API (нужен API key) [citation:3]
+        api_key = os.getenv("BSCSCAN_API_KEY")  # нужно добавить переменную
+        url = f"https://api.bscscan.com/api?module=account&action=tokentx&txhash={txid}&apikey={api_key}"
         response = requests.get(url)
         
         if response.status_code != 200:
-            return False, "Ошибка при обращении к блокчейну"
+            return False, "Ошибка при обращении к BscScan"
         
         data = response.json()
+        if data['status'] != '1' or not data['result']:
+            return False, "Транзакция не найдена"
         
-        # Проверяем, что это перевод токена
-        if 'tokenTransfer' not in data or not data['tokenTransfer']:
-            return False, "Это не транзакция с токеном"
+        tx = data['result'][0]
         
-        transfer = data['tokenTransfer']
+        # Проверяем, что это USDT (контракт USDT в BSC)
+        usdt_contract = "0x55d398326f99059ff775485246999027b3197955"  # BSC USDT
         
-        # Проверяем, что это USDT (contract address)
-        usdt_contract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-        if transfer.get('contract') != usdt_contract:
+        if tx['contractAddress'].lower() != usdt_contract.lower():
             return False, "Это не USDT"
         
         # Проверяем адрес получателя
-        if transfer.get('to_address') != expected_address:
-            return False, f"Неверный адрес получателя. Ожидался: {expected_address}, получен: {transfer.get('to_address')}"
+        if tx['to'].lower() != expected_address.lower():
+            return False, "Неверный адрес получателя"
         
-        # Проверяем сумму (в USDT 6 знаков после запятой)
-        amount = int(transfer.get('amount', 0)) / 1_000_000
+        # Проверяем сумму (в BEP-20 токенах 18 знаков)
+        amount = int(tx['value']) / 10**18
         if amount < expected_amount:
-            return False, f"Недостаточно средств: {amount} USDT (нужно {expected_amount})"
+            return False, f"Недостаточно средств: {amount} USDT"
         
         return True, f"OK: {amount} USDT"
         
