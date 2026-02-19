@@ -217,16 +217,15 @@ async def cmd_start_draw(message: types.Message):
     import asyncio
     await asyncio.sleep(120)
     
-    # Проводим розыгрыш
-winner = await execute_provable_draw(CHANNEL_ID, round_number, participants, target_block)
-
-# Очищаем участников ТОЛЬКО если розыгрыш прошёл успешно
-if winner:
-    cursor.execute("DELETE FROM participants")
-    conn.commit()
-    await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
-else:
-    await message.answer(f"❌ Розыгрыш #{round_number} не удался. Участники сохранены.")
+    # 👇 ЭТИ СТРОКИ ДОЛЖНЫ БЫТЬ С ОТСТУПОМ (4 пробела)
+    winner = await execute_provable_draw(CHANNEL_ID, round_number, participants, target_block)
+    
+    if winner:
+        cursor.execute("DELETE FROM participants")
+        conn.commit()
+        await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
+    else:
+        await message.answer(f"❌ Розыгрыш #{round_number} не удался. Участники сохранены.")
 
 @dp.message_handler()
 async def handle_txid(message: types.Message):
