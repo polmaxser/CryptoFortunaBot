@@ -218,13 +218,15 @@ async def cmd_start_draw(message: types.Message):
     await asyncio.sleep(120)
     
     # Проводим розыгрыш
-    winner = await execute_provable_draw(CHANNEL_ID, round_number, participants, target_block)
-    
-    # Очищаем участников
+winner = await execute_provable_draw(CHANNEL_ID, round_number, participants, target_block)
+
+# Очищаем участников ТОЛЬКО если розыгрыш прошёл успешно
+if winner:
     cursor.execute("DELETE FROM participants")
     conn.commit()
-    
     await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
+else:
+    await message.answer(f"❌ Розыгрыш #{round_number} не удался. Участники сохранены.")
 
 @dp.message_handler()
 async def handle_txid(message: types.Message):
@@ -350,7 +352,7 @@ async def execute_provable_draw(chat_id, round_number, participants, target_bloc
             "❌ **Ошибка:** не удалось получить хэш блока. Попробуйте позже.",
             chat_id, wait_msg.message_id, parse_mode="Markdown"
         )
-        return
+        return None
     
     # Вычисляем победителя
     hash_int = int(block_hash, 16)
