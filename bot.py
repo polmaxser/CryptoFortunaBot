@@ -277,25 +277,31 @@ import requests
 import time
 
 def get_current_tron_block():
-    """Получает номер последнего блока TRON"""
+    """Получает номер последнего блока TRON через рабочий API Tronscan"""
     try:
-        url = "https://api.trongrid.io/v1/blocks?limit=1"
+        # Используем API Tronscan (работает стабильно)
+        url = "https://apilist.tronscan.org/api/block/latest"
         response = requests.get(url, timeout=10)
+        
         if response.status_code == 200:
             data = response.json()
-            return data['data'][0]['block_number']
+            return data['number']
+        else:
+            logging.error(f"Ошибка API: {response.status_code}")
+            return None
     except Exception as e:
         logging.error(f"Ошибка получения блока: {e}")
-    return None
+        return None
 
 def get_tron_block_hash(block_number):
-    """Получает хэш блока TRON по номеру"""
+    """Получает хэш блока TRON по номеру через рабочий API"""
     try:
-        url = f"https://api.trongrid.io/v1/blocks/{block_number}"
+        url = f"https://apilist.tronscan.org/api/block?number={block_number}"
         response = requests.get(url, timeout=10)
+        
         if response.status_code == 200:
             data = response.json()
-            return data['blockID']
+            return data['hash']
     except Exception as e:
         logging.error(f"Ошибка получения хэша: {e}")
     return None
