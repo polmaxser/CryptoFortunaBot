@@ -59,40 +59,60 @@ keyboard.add(KeyboardButton("🎲 Выбрать победителя"))
 
 # === ФУНКЦИИ ПРОВЕРКИ ПЛАТЕЖЕЙ BSC ===
 def check_bsc_payment(txid, expected_amount=5, expected_address=None):
-    """Проверяет транзакцию USDT BEP-20 через BscScan API"""
+    """Проверяет транзакцию USDT BEP-20 через BscScan API с повторными попытками"""
     if expected_address is None:
         expected_address = WALLET_ADDRESS
     
-    try:
-        time.sleep(10)
-        api_key = os.getenv("BSCSCAN_API_KEY")
-        url = f"https://api.bscscan.com/api?module=account&action=tokentx&txhash={txid}&apikey={api_key}"
-        response = requests.get(url)
-        
-        if response.status_code != 200:
-            return False, "Ошибка при обращении к BscScan"
-        
-        data = response.json()
-        if data['status'] != '1' or not data['result']:
-            return False, "Транзакция не найдена"
-        
-        tx = data['result'][0]
-        usdt_contract = "0x55d398326f99059ff775485246999027b3197955"
-        
-        if tx['contractAddress'].lower() != usdt_contract.lower():
-            return False, "Это не USDT"
-        
-        if tx['to'].lower() != expected_address.lower():
-            return False, "Неверный адрес получателя"
-        
-        amount = int(tx['value']) / 10**18
-        if amount < expected_amount:
-            return False, f"Недостаточно средств: {amount} USDT"
-        
-        return True, f"OK: {amount} USDT"
-        
-    except Exception as e:
-        return False, f"Ошибка: {str(e)}"
+    # Делаем несколько попыток с увеличивающейся задержкой
+    for attempt in range(1, 4):  # 3 попытки
+        try:
+            # Ждём перед каждой попыткой (10, 20, 30 секунд)
+            time.sleep(10 * attempt)
+            
+            api_key = os.getenv("BSCSCAN_API_KEY")
+            url = f"https://api.bscscan.com/api?module=account&action=tokentx&txhash={txid}&apikey={api_key}"
+            response = requests.get(url)
+            
+            if response.status_code != 200:
+                if attempt < 3:
+                    continue  # пробуем ещё раз
+                return False, "Ошибка при обращении к BscScan"
+            
+            data = response.json()
+            
+            # Проверяем статус ответа
+            if data['status'] != '1':
+                if attempt < 3 and data.get('message') == 'No transactions found':
+                    time.sleep(10)  # дополнительная задержка
+                    continue  # пробуем ещё раз
+                return False, "Транзакция не найдена"
+            
+            if not data['result']:
+                if attempt < 3:
+                    continue
+                return False, "Транзакция не найдена"
+            
+            tx = data['result'][0]
+            usdt_contract = "0x55d398326f99059ff775485246999027b3197955"
+            
+            if tx['contractAddress'].lower() != usdt_contract.lower():
+                return False, "Это не USDT"
+            
+            if tx['to'].lower() != expected_address.lower():
+                return False, "Неверный адрес получателя"
+            
+            amount = int(tx['value']) / 10**18
+            if amount < expected_amount:
+                return False, f"Недостаточно средств: {amount} USDT"
+            
+            return True, f"OK: {amount} USDT"
+            
+        except Exception as e:
+            if attempt == 3:
+                return False, f"Ошибка: {str(e)}"
+            continue
+    
+    return False, "Не удалось проверить транзакцию после нескольких попыток"
 
 # === ФУНКЦИИ ДЛЯ ПОЛУЧЕНИЯ БЛОКОВ BSC ===
 def get_current_bsc_block():
@@ -322,7 +342,12 @@ async def handle_txid(message: types.Message):
         await message.answer("❌ Этот TXID уже был использован")
         return
     
-    wait_msg = await message.answer("🔄 Проверяю транзакцию... Это может занять до 20 секунд")
+    wait_msg = await message.answer(
+    "🔄 **Проверяю транзакцию...**\n"
+    "⏱ Это может занять до 30-40 секунд из-за задержек API\n"
+    "Пожалуйста, подожди...",
+    parse_mode="Markdown"
+)
     
     success, msg = check_bsc_payment(txid)
     
