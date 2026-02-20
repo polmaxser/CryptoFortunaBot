@@ -374,8 +374,15 @@ async def add_participant(message: types.Message):
 
 @dp.message_handler(commands=['start_draw'])
 async def cmd_start_draw(message: types.Message):
+    global draw_in_progress
+    
     if message.from_user.id != ADMIN_ID:
         await message.answer("❌ Эта команда только для админа")
+        return
+    
+    # Проверяем, не идёт ли уже розыгрыш
+    if draw_in_progress:
+        await message.answer("⚠️ **Розыгрыш уже запущен!** Подождите завершения.")
         return
     
     cursor.execute("SELECT username FROM participants")
@@ -385,30 +392,39 @@ async def cmd_start_draw(message: types.Message):
         await message.answer("❌ Для розыгрыша нужно минимум 2 участника")
         return
     
-    round_number = random.randint(1000, 9999)
+    # Устанавливаем флаг, что розыгрыш начался
+    draw_in_progress = True
     
-    current_block = get_current_bsc_block()
-    if not current_block:
-        await message.answer("❌ Не удалось получить номер блока BSC")
-        return
+    try:
+        round_number = random.randint(1000, 9999)
+        
+        current_block = get_current_bsc_block()
+        if not current_block:
+            await message.answer("❌ Не удалось получить номер блока BSC")
+            draw_in_progress = False
+            return
+        
+        target_block = current_block + 20
+        
+        await publish_round_info(CHANNEL_ID, round_number, participants, target_block)
+        await message.answer(f"✅ Информация о розыгрыше #{round_number} опубликована в канале")
+        await message.answer(f"⏳ Розыгрыш состоится через 2 минуты (блок #{target_block})")
+        
+        await asyncio.sleep(120)
+        
+        winner = await execute_provable_draw_bsc(CHANNEL_ID, round_number, participants, target_block)
+        
+        if winner:
+            cursor.execute("DELETE FROM participants")
+            cursor.execute("DELETE FROM transactions")
+            conn.commit()
+            await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
+        else:
+            await message.answer(f"❌ Розыгрыш #{round_number} не удался. Участники сохранены.")
     
-    target_block = current_block + 20
-    
-    await publish_round_info(CHANNEL_ID, round_number, participants, target_block)
-    await message.answer(f"✅ Информация о розыгрыше #{round_number} опубликована в канале")
-    await message.answer(f"⏳ Розыгрыш состоится через 2 минуты (блок #{target_block})")
-    
-    await asyncio.sleep(120)
-    
-    winner = await execute_provable_draw_bsc(CHANNEL_ID, round_number, participants, target_block)
-    
-    if winner:
-        cursor.execute("DELETE FROM participants")
-        cursor.execute("DELETE FROM transactions")  # Очищаем историю транзакций
-        conn.commit()
-        await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
-    else:
-        await message.answer(f"❌ Розыгрыш #{round_number} не удался. Участники сохранены.")
+    finally:
+        # ВАЖНО: снимаем блокировку в любом случае
+        draw_in_progress = False
 
 @dp.message_handler()
 async def handle_txid(message: types.Message):
