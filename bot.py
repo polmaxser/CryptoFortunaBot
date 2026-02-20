@@ -418,7 +418,6 @@ async def cmd_start_draw(message: types.Message):
         
         if winner:
             cursor.execute("DELETE FROM participants")
-            cursor.execute("DELETE FROM transactions")
             conn.commit()
             await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
         else:
