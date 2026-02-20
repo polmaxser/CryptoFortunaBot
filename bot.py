@@ -440,6 +440,20 @@ async def cmd_start_draw(message: types.Message):
 
 @dp.message_handler()
 async def handle_txid(message: types.Message):
+    # Игнорируем команды (начинаются с /)
+    if message.text.startswith('/'):
+        return
+    
+    # Игнорируем текст кнопок
+    button_texts = ["🎟 Участвовать", "💰 Банк", "👥 Участники", "🎲 Выбрать победителя"]
+    if message.text in button_texts:
+        return
+    
+    # Игнорируем слишком короткие или длинные сообщения (TXID обычно 66 символов)
+    if len(message.text) < 60 or len(message.text) > 70:
+        await message.answer("❌ Это не похоже на TXID. Отправь хэш транзакции (64-66 символов).")
+        return
+    
     txid = message.text.strip()
     user_id = message.from_user.id
     username = message.from_user.username or f"user_{user_id}"
