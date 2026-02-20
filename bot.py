@@ -10,6 +10,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 
+draw_in_progress = False
+
 # === НАСТРОЙКИ ===
 API_TOKEN = os.getenv("BOT_TOKEN")
 WALLET_ADDRESS = "0xFd434c30aCeF2815fE895a2144b11122e31c0B93"
