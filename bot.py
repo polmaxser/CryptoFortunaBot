@@ -379,6 +379,38 @@ async def cmd_reset_db(message: types.Message):
     conn.commit()
     await message.answer("✅ База данных очищена! Все TXID теперь будут считаться новыми.")
 
+@dp.message_handler(commands=['find_txid'])
+async def cmd_find_txid(message: types.Message):
+    """Поиск TXID в базе данных (только для админа)"""
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    # Ищем конкретный проблемный TXID
+    txid = "0xd114d0950a73cf6fe8c3210a8dbabdbb88b65d7e818ba9b79d8311ba02e1a82"
+    
+    cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid,))
+    result = cursor.fetchone()
+    
+    if result:
+        await message.answer(f"✅ TXID **НАЙДЕН** в базе!\n\n"
+                             f"Запись: {result}", parse_mode="Markdown")
+    else:
+        await message.answer(f"❌ TXID **НЕ НАЙДЕН** в базе.\n"
+                             f"Значит, он был удалён или никогда не сохранялся.")
+    
+    # Покажем последние 5 записей для проверки
+    cursor.execute("SELECT txid, username, created_at FROM transactions ORDER BY created_at DESC LIMIT 5")
+    rows = cursor.fetchall()
+    
+    if rows:
+        text = "📋 **Последние 5 TXID в базе:**\n\n"
+        for tx, uname, dt in rows:
+            short_tx = tx[:10] + "..." + tx[-6:]
+            text += f"• `{short_tx}` — {uname} — {dt}\n"
+        await message.answer(text, parse_mode="Markdown")
+    else:
+        await message.answer("📭 База транзакций пуста.")
+
 @dp.message_handler(commands=['start_draw'])
 async def cmd_start_draw(message: types.Message):
     global draw_in_progress
@@ -452,18 +484,19 @@ async def handle_txid(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username or f"user_{user_id}"
     
+    # 1. Проверяем, есть ли TXID в базе (ЭТО ГЛАВНОЕ)
     cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid,))
     if cursor.fetchone():
         await message.answer("❌ Этот TXID уже был использован")
         return
 
-    # Проверяем, не участвует ли уже этот пользователь
+    # 2. Проверяем, не участвует ли уже этот пользователь
     cursor.execute("SELECT * FROM participants WHERE username = ?", (f"@{username}",))
     if cursor.fetchone():
         await message.answer("❌ Вы уже участвуете в текущем розыгрыше")
         return
     
-    wait_msg = await message.answer(  # 👈 ТЕПЕРЬ ПРАВИЛЬНЫЙ ОТСТУП
+    wait_msg = await message.answer(
         "🔄 **Проверяю транзакцию...**\n"
         "⏱ Это может занять до 30-40 секунд из-за задержек API\n"
         "Пожалуйста, подожди...",
@@ -473,23 +506,26 @@ async def handle_txid(message: types.Message):
     success, msg = check_bsc_payment(txid)
     
     if success:
+        # 3. Сохраняем TXID в любом случае (INSERT OR IGNORE)
+        cursor.execute(
+            "INSERT OR IGNORE INTO transactions (txid, user_id, username, amount) VALUES (?, ?, ?, ?)",
+            (txid, user_id, username, 5)
+        )
+        
+        # 4. Добавляем участника
         try:
             cursor.execute(
                 "INSERT INTO participants (username) VALUES (?)", 
                 (f"@{username}",)
             )
             conn.commit()
+            await message.answer(f"✅ Транзакция подтверждена!\nТы добавлен в розыгрыш 🎟")
         except sqlite3.IntegrityError:
-            pass
-        
-        cursor.execute(
-            "INSERT INTO transactions (txid, user_id, username, amount) VALUES (?, ?, ?, ?)",
-            (txid, user_id, username, 5)
-        )
-        conn.commit()
-        
-        await message.answer(f"✅ Транзакция подтверждена!\nТы добавлен в розыгрыш 🎟")
+            conn.commit()  # TXID уже сохранился, даже если участник не добавился
+            await message.answer("⚠️ Вы уже участвуете в этом розыгрыше")
     else:
+        # Даже при ошибке API коммитим, чтобы сохранить факт попытки? 
+        # Лучше не надо, сохраняем только успешные.
         await message.answer(f"❌ Ошибка: {msg}")
     
     await wait_msg.delete()
