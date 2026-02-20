@@ -68,35 +68,30 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
         try:
             time.sleep(10 * attempt)
             
-            # BSCTrace использует JSON-RPC формат [citation:2]
             api_key = os.getenv("MEGANODE_API_KEY")
             url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
             
-            # Получаем детали транзакции через eth_getTransactionByHash
-            payload = {
+            # Получаем детали транзакции
+            tx_payload = {
                 "jsonrpc": "2.0",
                 "method": "eth_getTransactionByHash",
                 "params": [txid],
                 "id": 1
             }
-            response = requests.post(url, json=payload)
+            tx_response = requests.post(url, json=tx_payload)
             
-            if response.status_code != 200:
+            if tx_response.status_code != 200:
                 if attempt < 3:
                     continue
                 return False, "Ошибка при обращении к BSCTrace"
             
-            data = response.json()
-            
-            if 'result' not in data or not data['result']:
+            tx_data = tx_response.json()
+            if 'result' not in tx_data or not tx_data['result']:
                 if attempt < 3:
                     continue
                 return False, "Транзакция не найдена"
             
-            tx = data['result']
-            
-            # Проверяем, что это перевод токена (USDT)
-            # Для токенов нужно дополнительно проверить лог транзакции
+            # Получаем receipt с логами
             receipt_payload = {
                 "jsonrpc": "2.0",
                 "method": "eth_getTransactionReceipt",
@@ -114,31 +109,42 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
             
             receipt = receipt_data['result']
             
-            # Проверяем адрес получателя
-            if tx['to'].lower() != expected_address.lower():
-                return False, "Неверный адрес получателя"
-            
             # Контракт USDT в BSC
             usdt_contract = "0x55d398326f99059ff775485246999027b3197955"
-            if tx['to'].lower() != usdt_contract.lower():
-                # Если это не прямой вызов контракта, проверяем логи
-                found_transfer = False
-                if 'logs' in receipt:
-                    for log in receipt['logs']:
-                        if log['address'].lower() == usdt_contract.lower():
-                            # Парсим данные перевода
-                            # topics[0] = Transfer event signature
-                            # topics[1] = from address
-                            # topics[2] = to address
-                            # data = amount
-                            if len(log['topics']) >= 3:
-                                to_address = '0x' + log['topics'][2][-40:]
-                                if to_address.lower() == expected_address.lower():
-                                    amount = int(log['data'], 16) / 10**18
-                                    if amount >= expected_amount:
-                                        return True, f"OK: {amount} USDT"
             
-            return False, "Это не перевод USDT"
+            # Ищем Transfer событие в логах
+            found_transfer = False
+            if 'logs' in receipt:
+                for log in receipt['logs']:
+                    # Проверяем, что это контракт USDT
+                    if log['address'].lower() == usdt_contract.lower():
+                        # Проверяем, что это Transfer event (topics[0] - signature)
+                        if len(log['topics']) >= 3 and log['topics'][0] == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef":
+                            # topics[1] - отправитель (from)
+                            # topics[2] - получатель (to)
+                            # data - сумма
+                            
+                            # Адрес получателя из topics[2]
+                            # Убираем '0x' и берём последние 40 символов
+                            to_address_hex = log['topics'][2][2:]  # убираем '0x'
+                            if len(to_address_hex) > 40:
+                                to_address_hex = to_address_hex[-40:]
+                            to_address = '0x' + to_address_hex
+                            
+                            print(f"🔍 Найден Transfer:")
+                            print(f"   Получатель: {to_address}")
+                            print(f"   Ожидаемый: {expected_address}")
+                            
+                            if to_address.lower() == expected_address.lower():
+                                # Получаем сумму из data
+                                amount = int(log['data'], 16) / 10**18
+                                if amount >= expected_amount:
+                                    return True, f"OK: {amount} USDT"
+                                else:
+                                    return False, f"Недостаточно средств: {amount} USDT"
+            
+            if not found_transfer:
+                return False, "Не найден перевод USDT в этой транзакции"
             
         except Exception as e:
             if attempt == 3:
