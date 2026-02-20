@@ -220,30 +220,13 @@ def get_bsc_block_hash(block_number):
     return None
 
 # === ФУНКЦИИ ДЛЯ ПРОВЕДЕНИЯ РОЗЫГРЫША ===
-async def publish_round_info(chat_id, round_number, participants, target_block):
-    """Публикует информацию о раунде перед розыгрышем"""
-    tickets = []
-    for i, user in enumerate(participants, 1):
-        tickets.append(f"{i}. {user}")
-    
-    tickets_text = "\n".join(tickets[:20])
-    if len(participants) > 20:
-        tickets_text += f"\n... и ещё {len(participants) - 20}"
-    
-    message = (
-        f"🎲 **РОЗЫГРЫШ #{round_number}**\n\n"
-        f"🎟 **Всего билетов:** {len(participants)}\n\n"
-        f"**Список участников:**\n{tickets_text}\n\n"
-        f"🔐 **Прозрачный выбор победителя:**\n"
-        f"1️⃣ Будет взят хэш блока BSC **#{target_block}**\n"
-        f"2️⃣ Победитель = хэш % {len(participants)}\n"
-        f"3️⃣ Результат появится здесь сразу после получения блока\n\n"
-        f"⏳ Ожидайте розыгрыша..."
-    )
-    await bot.send_message(chat_id, message, parse_mode="Markdown")
-
 async def execute_provable_draw_bsc(chat_id, round_number, participants, target_block):
-    """Проводит provably fair розыгрыш на BSC"""
+    """Проводит provably fair розыгрыш на BSC (однократно)"""
+    
+    # Защита от повторного выполнения того же розыгрыша
+    if hasattr(execute_provable_draw_bsc, f"completed_{round_number}"):
+        return None
+    
     wait_msg = await bot.send_message(chat_id, "⏳ **Получаю хэш блока BSC...**", parse_mode="Markdown")
     
     block_hash = None
@@ -284,11 +267,9 @@ async def execute_provable_draw_bsc(chat_id, round_number, participants, target_
         parse_mode="Markdown", disable_web_page_preview=True
     )
     
-    await bot.send_message(
-        CHANNEL_ID,
-        f"🎲 Результат розыгрыша #{round_number}: {winner}",
-        parse_mode="Markdown"
-    )
+    # Помечаем, что этот розыгрыш завершён
+    setattr(execute_provable_draw_bsc, f"completed_{round_number}", True)
+    
     return winner
 
 # === ОСНОВНЫЕ ОБРАБОТЧИКИ ===
