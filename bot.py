@@ -70,7 +70,7 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
             time.sleep(10 * attempt)
             
             api_key = os.getenv("BSCSCAN_API_KEY")
-            url = f"https://api.bscscan.com/api?module=account&action=tokentx&txhash={txid}&apikey={api_key}"
+            url = f"https://api.etherscan.io/v2/api?chainid=56&module=account&action=tokentx&txhash={txid}&apikey={api_key}"
             response = requests.get(url)
             
             if response.status_code != 200:
@@ -119,7 +119,7 @@ def get_current_bsc_block():
     """Получает номер последнего блока BSC"""
     try:
         api_key = os.getenv("BSCSCAN_API_KEY")
-        url = f"https://api.bscscan.com/api?module=block&action=getblocknobytime&timestamp=latest&closest=before&apikey={api_key}"
+        url = f"https://api.etherscan.io/v2/api?chainid=56&module=block&action=getblocknobytime&timestamp=latest&closest=before&apikey={api_key}"
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
@@ -132,7 +132,7 @@ def get_bsc_block_hash(block_number):
     """Получает хэш блока BSC по номеру"""
     try:
         api_key = os.getenv("BSCSCAN_API_KEY")
-        url = f"https://api.bscscan.com/api?module=block&action=getblockreward&blockno={block_number}&apikey={api_key}"
+        url = f"https://api.etherscan.io/v2/api?chainid=56&module=block&action=getblockreward&blockno={block_number}&apikey={api_key}"
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
