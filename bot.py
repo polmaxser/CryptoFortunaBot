@@ -404,6 +404,7 @@ async def cmd_start_draw(message: types.Message):
     
     if winner:
         cursor.execute("DELETE FROM participants")
+        cursor.execute("DELETE FROM transactions")  # Очищаем историю транзакций
         conn.commit()
         await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
     else:
@@ -419,13 +420,19 @@ async def handle_txid(message: types.Message):
     if cursor.fetchone():
         await message.answer("❌ Этот TXID уже был использован")
         return
+
+    # Проверяем, не участвует ли уже этот пользователь
+    cursor.execute("SELECT * FROM participants WHERE username = ?", (f"@{username}",))
+    if cursor.fetchone():
+        await message.answer("❌ Вы уже участвуете в текущем розыгрыше")
+        return
     
-    wait_msg = await message.answer(
-    "🔄 **Проверяю транзакцию...**\n"
-    "⏱ Это может занять до 30-40 секунд из-за задержек API\n"
-    "Пожалуйста, подожди...",
-    parse_mode="Markdown"
-)
+    wait_msg = await message.answer(  # 👈 ТЕПЕРЬ ПРАВИЛЬНЫЙ ОТСТУП
+        "🔄 **Проверяю транзакцию...**\n"
+        "⏱ Это может занять до 30-40 секунд из-за задержек API\n"
+        "Пожалуйста, подожди...",
+        parse_mode="Markdown"
+    )
     
     success, msg = check_bsc_payment(txid)
     
