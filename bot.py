@@ -374,6 +374,17 @@ async def add_participant(message: types.Message):
     except sqlite3.IntegrityError:
         await message.answer("⚠️ Этот участник уже добавлен")
 
+@dp.message_handler(commands=['reset_db'])
+async def cmd_reset_db(message: types.Message):
+    """Сброс базы данных (только для админа)"""
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    cursor.execute("DELETE FROM participants")
+    cursor.execute("DELETE FROM transactions")
+    conn.commit()
+    await message.answer("✅ База данных очищена! Все TXID теперь будут считаться новыми.")
+
 @dp.message_handler(commands=['start_draw'])
 async def cmd_start_draw(message: types.Message):
     global draw_in_progress
