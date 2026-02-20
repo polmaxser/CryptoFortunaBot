@@ -59,53 +59,86 @@ keyboard.add(KeyboardButton("🎲 Выбрать победителя"))
 
 # === ФУНКЦИИ ПРОВЕРКИ ПЛАТЕЖЕЙ BSC ===
 def check_bsc_payment(txid, expected_amount=5, expected_address=None):
-    """Проверяет транзакцию USDT BEP-20 через BscScan API с повторными попытками"""
+    """Проверяет транзакцию USDT BEP-20 через BSCTrace API (MegaNode)"""
     if expected_address is None:
         expected_address = WALLET_ADDRESS
     
     # Делаем несколько попыток с увеличивающейся задержкой
-    for attempt in range(1, 4):  # 3 попытки
+    for attempt in range(1, 4):
         try:
-            # Ждём перед каждой попыткой (10, 20, 30 секунд)
             time.sleep(10 * attempt)
             
-            api_key = os.getenv("BSCSCAN_API_KEY")
-            url = f"https://api.etherscan.io/v2/api?chainid=56&module=account&action=tokentx&txhash={txid}&apikey={api_key}"
-            response = requests.get(url)
+            # BSCTrace использует JSON-RPC формат [citation:2]
+            api_key = os.getenv("MEGANODE_API_KEY")
+            url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
+            
+            # Получаем детали транзакции через eth_getTransactionByHash
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "eth_getTransactionByHash",
+                "params": [txid],
+                "id": 1
+            }
+            response = requests.post(url, json=payload)
             
             if response.status_code != 200:
                 if attempt < 3:
-                    continue  # пробуем ещё раз
-                return False, "Ошибка при обращении к BscScan"
+                    continue
+                return False, "Ошибка при обращении к BSCTrace"
             
             data = response.json()
             
-            # Проверяем статус ответа
-            if data['status'] != '1':
-                if attempt < 3 and data.get('message') == 'No transactions found':
-                    time.sleep(10)  # дополнительная задержка
-                    continue  # пробуем ещё раз
-                return False, "Транзакция не найдена"
-            
-            if not data['result']:
+            if 'result' not in data or not data['result']:
                 if attempt < 3:
                     continue
                 return False, "Транзакция не найдена"
             
-            tx = data['result'][0]
-            usdt_contract = "0x55d398326f99059ff775485246999027b3197955"
+            tx = data['result']
             
-            if tx['contractAddress'].lower() != usdt_contract.lower():
-                return False, "Это не USDT"
+            # Проверяем, что это перевод токена (USDT)
+            # Для токенов нужно дополнительно проверить лог транзакции
+            receipt_payload = {
+                "jsonrpc": "2.0",
+                "method": "eth_getTransactionReceipt",
+                "params": [txid],
+                "id": 2
+            }
+            receipt_response = requests.post(url, json=receipt_payload)
             
+            if receipt_response.status_code != 200:
+                return False, "Не удалось получить подтверждение транзакции"
+            
+            receipt_data = receipt_response.json()
+            if 'result' not in receipt_data or not receipt_data['result']:
+                return False, "Транзакция не подтверждена"
+            
+            receipt = receipt_data['result']
+            
+            # Проверяем адрес получателя
             if tx['to'].lower() != expected_address.lower():
                 return False, "Неверный адрес получателя"
             
-            amount = int(tx['value']) / 10**18
-            if amount < expected_amount:
-                return False, f"Недостаточно средств: {amount} USDT"
+            # Контракт USDT в BSC
+            usdt_contract = "0x55d398326f99059ff775485246999027b3197955"
+            if tx['to'].lower() != usdt_contract.lower():
+                # Если это не прямой вызов контракта, проверяем логи
+                found_transfer = False
+                if 'logs' in receipt:
+                    for log in receipt['logs']:
+                        if log['address'].lower() == usdt_contract.lower():
+                            # Парсим данные перевода
+                            # topics[0] = Transfer event signature
+                            # topics[1] = from address
+                            # topics[2] = to address
+                            # data = amount
+                            if len(log['topics']) >= 3:
+                                to_address = '0x' + log['topics'][2][-40:]
+                                if to_address.lower() == expected_address.lower():
+                                    amount = int(log['data'], 16) / 10**18
+                                    if amount >= expected_amount:
+                                        return True, f"OK: {amount} USDT"
             
-            return True, f"OK: {amount} USDT"
+            return False, "Это не перевод USDT"
             
         except Exception as e:
             if attempt == 3:
@@ -129,14 +162,23 @@ def get_current_bsc_block():
     return None
 
 def get_bsc_block_hash(block_number):
-    """Получает хэш блока BSC по номеру"""
+    """Получает хэш блока BSC через BSCTrace API"""
     try:
-        api_key = os.getenv("BSCSCAN_API_KEY")
-        url = f"https://api.etherscan.io/v2/api?chainid=56&module=block&action=getblockreward&blockno={block_number}&apikey={api_key}"
-        response = requests.get(url, timeout=10)
+        api_key = os.getenv("MEGANODE_API_KEY")
+        url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
+        
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_getBlockByNumber",
+            "params": [hex(block_number), False],
+            "id": 1
+        }
+        response = requests.post(url, json=payload, timeout=10)
+        
         if response.status_code == 200:
             data = response.json()
-            return data['result']['blockHash']
+            if 'result' in data and data['result']:
+                return data['result']['hash']
     except Exception as e:
         logging.error(f"Ошибка получения хэша BSC: {e}")
     return None
