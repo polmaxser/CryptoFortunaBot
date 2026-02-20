@@ -57,7 +57,6 @@ keyboard.add(
     KeyboardButton("💰 Банк"),
     KeyboardButton("👥 Участники")
 )
-keyboard.add(KeyboardButton("🎲 Выбрать победителя"))
 
 # === ФУНКЦИИ ПРОВЕРКИ ПЛАТЕЖЕЙ BSC ===
 def check_bsc_payment(txid, expected_amount=5, expected_address=None):
@@ -325,11 +324,6 @@ async def members(message: types.Message):
     cursor.execute("SELECT COUNT(*) FROM participants")
     count = cursor.fetchone()[0]
     await message.answer(f"👥 Всего участников: {count}")
-
-@dp.message_handler(lambda message: message.text == "🎲 Выбрать победителя")
-async def choose_winner(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
     
     cursor.execute("SELECT username FROM participants")
     users = cursor.fetchall()
