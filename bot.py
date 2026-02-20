@@ -155,38 +155,68 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
 
 # === ФУНКЦИИ ДЛЯ ПОЛУЧЕНИЯ БЛОКОВ BSC ===
 def get_current_bsc_block():
-    """Получает номер последнего блока BSC"""
-    try:
-        api_key = os.getenv("BSCSCAN_API_KEY")
-        url = f"https://api.etherscan.io/v2/api?chainid=56&module=block&action=getblocknobytime&timestamp=latest&closest=before&apikey={api_key}"
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            return int(data['result'])
-    except Exception as e:
-        logging.error(f"Ошибка получения блока BSC: {e}")
-    return None
-
-def get_bsc_block_hash(block_number):
-    """Получает хэш блока BSC через BSCTrace API"""
+    """Получает номер последнего блока BSC через MegaNode JSON-RPC"""
     try:
         api_key = os.getenv("MEGANODE_API_KEY")
         url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
         
+        # Используем eth_blockNumber JSON-RPC метод
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_blockNumber",
+            "params": [],
+            "id": 1
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'result' in data:
+                # Приходит в hex, конвертируем в десятичное число
+                block_number = int(data['result'], 16)
+                logging.info(f"✅ Текущий блок BSC: {block_number}")
+                return block_number
+        else:
+            logging.error(f"Ошибка HTTP: {response.status_code}")
+            logging.error(f"Ответ: {response.text[:200]}")
+            
+    except Exception as e:
+        logging.error(f"Ошибка получения блока BSC: {str(e)}")
+    
+    return None
+
+def get_bsc_block_hash(block_number):
+    """Получает хэш блока BSC по номеру через MegaNode JSON-RPC"""
+    try:
+        api_key = os.getenv("MEGANODE_API_KEY")
+        url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
+        
+        # Конвертируем номер блока в hex
+        block_hex = hex(block_number)
+        
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
-            "params": [hex(block_number), False],
+            "params": [block_hex, False],  # False = не нужно транзакции
             "id": 1
         }
+        
         response = requests.post(url, json=payload, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
             if 'result' in data and data['result']:
-                return data['result']['hash']
+                block_hash = data['result']['hash']
+                logging.info(f"✅ Хэш блока {block_number}: {block_hash[:32]}...")
+                return block_hash
+        else:
+            logging.error(f"Ошибка HTTP: {response.status_code}")
+            logging.error(f"Ответ: {response.text[:200]}")
+            
     except Exception as e:
-        logging.error(f"Ошибка получения хэша BSC: {e}")
+        logging.error(f"Ошибка получения хэша BSC: {str(e)}")
+    
     return None
 
 # === ФУНКЦИИ ДЛЯ ПРОВЕДЕНИЯ РОЗЫГРЫША ===
