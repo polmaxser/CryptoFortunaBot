@@ -325,32 +325,6 @@ async def members(message: types.Message):
     count = cursor.fetchone()[0]
     await message.answer(f"👥 Всего участников: {count}")
     
-    cursor.execute("SELECT username FROM participants")
-    users = cursor.fetchall()
-    
-    if not users:
-        await message.answer("❌ Нет участников для розыгрыша")
-        return
-    
-    winner = random.choice(users)[0]
-    total_users = len(users)
-    bank = total_users * ENTRY_FEE
-    commission = bank * 0.10
-    winner_prize = bank - commission
-    
-    await message.answer(
-        f"🏆 **Победитель:** {winner}\n\n"
-        f"👥 Участников: {total_users}\n"
-        f"💰 Общий банк: {bank} USDT\n"
-        f"💸 Комиссия (10%): {commission:.2f} USDT\n"
-        f"🎁 Выигрыш: {winner_prize:.2f} USDT",
-        parse_mode="Markdown"
-    )
-    
-    cursor.execute("DELETE FROM participants")
-    conn.commit()
-    await message.answer("🔄 Раунд завершён. Банк обнулён.")
-
 @dp.message_handler(commands=['add'])
 async def add_participant(message: types.Message):
     if message.from_user.id != ADMIN_ID:
