@@ -355,29 +355,37 @@ async def cmd_reset_db(message: types.Message):
 
 @dp.message_handler(commands=['find_txid'])
 async def cmd_find_txid(message: types.Message):
-    """Поиск TXID в базе данных (только для админа)"""
+    """Поиск TXID в базе данных (можно указать TXID или посмотреть последние)"""
     if message.from_user.id != ADMIN_ID:
         return
     
-    # Ищем конкретный проблемный TXID
-    txid = "0xd114d0950a73cf6fe8c3210a8dbabdbb88b65d7e818ba9b79d8311ba02e1a82"
+    args = message.get_args()
     
-    cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid,))
-    result = cursor.fetchone()
+    if args:
+        # Если передан параметр, ищем конкретный TXID
+        txid_to_find = args.strip()
+        cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid_to_find,))
+        result = cursor.fetchone()
+        
+        if result:
+            await message.answer(
+                f"✅ TXID **НАЙДЕН** в базе!\n\n"
+                f"Запись: {result}",
+                parse_mode="Markdown"
+            )
+        else:
+            await message.answer(
+                f"❌ TXID **НЕ НАЙДЕН** в базе.\n"
+                f"Значит, он никогда не сохранялся.",
+                parse_mode="Markdown"
+            )
     
-    if result:
-        await message.answer(f"✅ TXID **НАЙДЕН** в базе!\n\n"
-                             f"Запись: {result}", parse_mode="Markdown")
-    else:
-        await message.answer(f"❌ TXID **НЕ НАЙДЕН** в базе.\n"
-                             f"Значит, он был удалён или никогда не сохранялся.")
-    
-    # Покажем последние 5 записей для проверки
-    cursor.execute("SELECT txid, username, created_at FROM transactions ORDER BY created_at DESC LIMIT 5")
+    # Всегда показываем последние 10 записей
+    cursor.execute("SELECT txid, username, created_at FROM transactions ORDER BY created_at DESC LIMIT 10")
     rows = cursor.fetchall()
     
     if rows:
-        text = "📋 **Последние 5 TXID в базе:**\n\n"
+        text = "📋 **Последние 10 TXID в базе:**\n\n"
         for tx, uname, dt in rows:
             short_tx = tx[:10] + "..." + tx[-6:]
             text += f"• `{short_tx}` — {uname} — {dt}\n"
