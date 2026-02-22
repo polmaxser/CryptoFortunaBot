@@ -362,10 +362,25 @@ async def cmd_find_txid(message: types.Message):
     args = message.get_args()
     
     if args:
-        # Если передан параметр, ищем конкретный TXID
-        txid_to_find = args.strip()
-        cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid_to_find,))
+        # Получаем и чистим искомый TXID
+        search_txid = args.strip().lower()
+        
+        # Пробуем разные варианты поиска
+        cursor.execute("SELECT * FROM transactions WHERE txid = ?", (search_txid,))
         result = cursor.fetchone()
+        
+        if not result:
+            # Пробуем без '0x' в начале, если есть
+            if search_txid.startswith('0x'):
+                search_txid_no_prefix = search_txid[2:]
+                cursor.execute("SELECT * FROM transactions WHERE txid LIKE ?", (f'%{search_txid_no_prefix}%',))
+                result = cursor.fetchone()
+        
+        if not result:
+            # Пробуем частичное совпадение по последним символам
+            short_txid = search_txid[-20:] if len(search_txid) > 20 else search_txid
+            cursor.execute("SELECT * FROM transactions WHERE txid LIKE ?", (f'%{short_txid}%',))
+            result = cursor.fetchone()
         
         if result:
             await message.answer(
@@ -375,8 +390,8 @@ async def cmd_find_txid(message: types.Message):
             )
         else:
             await message.answer(
-                f"❌ TXID **НЕ НАЙДЕН** в базе.\n"
-                f"Значит, он никогда не сохранялся.",
+                f"❌ TXID **НЕ НАЙДЕН** в базе ни по одному из форматов.\n"
+                f"Искали: {search_txid[:20]}...{search_txid[-10:]}",
                 parse_mode="Markdown"
             )
     
@@ -387,7 +402,7 @@ async def cmd_find_txid(message: types.Message):
     if rows:
         text = "📋 **Последние 10 TXID в базе:**\n\n"
         for tx, uname, dt in rows:
-            short_tx = tx[:10] + "..." + tx[-6:]
+            short_tx = tx[:15] + "..." + tx[-10:]
             text += f"• `{short_tx}` — {uname} — {dt}\n"
         await message.answer(text, parse_mode="Markdown")
     else:
