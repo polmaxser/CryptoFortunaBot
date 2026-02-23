@@ -53,12 +53,32 @@ cursor.execute("""
     )
 """)
 
+# Таблица для хранения истории розыгрышей
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS draw_history (
+        id SERIAL PRIMARY KEY,
+        round_number INTEGER,
+        draw_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        participants_count INTEGER,
+        total_bank REAL,
+        winner_username TEXT,
+        winner_prize REAL,
+        commission REAL,
+        target_block INTEGER,
+        block_hash TEXT
+    )
+""")
+
 # === КЛАВИАТУРА ===
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 keyboard.add(
     KeyboardButton("🎟 Участвовать"),
     KeyboardButton("💰 Банк"),
     KeyboardButton("👥 Участники")
+)
+keyboard.add(
+    KeyboardButton("📊 Статистика"),
+    KeyboardButton("📜 История")
 )
 
 # === ФУНКЦИИ ПРОВЕРКИ ПЛАТЕЖЕЙ BSC ===
@@ -275,6 +295,76 @@ async def execute_provable_draw_bsc(chat_id, round_number, participants, target_
     
     return winner
 
+# === СТАТИСТИКА И ИСТОРИЯ ===
+@dp.message_handler(commands=['stats'])
+async def cmd_stats(message: types.Message):
+    """Показывает общую статистику бота"""
+    
+    # Общее количество розыгрышей
+    cursor.execute("SELECT COUNT(*) FROM draw_history")
+    total_draws = cursor.fetchone()['count'] or 0
+    
+    # Всего участников за всё время
+    cursor.execute("SELECT SUM(participants_count) FROM draw_history")
+    total_participants = cursor.fetchone()['sum'] or 0
+    
+    # Общий банк за всё время
+    cursor.execute("SELECT SUM(total_bank) FROM draw_history")
+    total_bank_all = cursor.fetchone()['sum'] or 0
+    
+    # Общая комиссия
+    cursor.execute("SELECT SUM(commission) FROM draw_history")
+    total_commission = cursor.fetchone()['sum'] or 0
+    
+    # Самый крупный выигрыш
+    cursor.execute("SELECT MAX(winner_prize) FROM draw_history")
+    max_prize = cursor.fetchone()['max'] or 0
+    
+    # Самый крупный банк
+    cursor.execute("SELECT MAX(total_bank) FROM draw_history")
+    max_bank = cursor.fetchone()['max'] or 0
+    
+    stats_text = (
+        f"📊 **ОБЩАЯ СТАТИСТИКА**\n\n"
+        f"🎲 Всего розыгрышей: **{total_draws}**\n"
+        f"👥 Всего участников: **{total_participants}**\n"
+        f"💰 Общий банк: **{total_bank_all:.2f} USDT**\n"
+        f"💸 Твоя комиссия (10%): **{total_commission:.2f} USDT**\n\n"
+        f"🏆 **Рекорды:**\n"
+        f"• Самый крупный банк: **{max_bank:.2f} USDT**\n"
+        f"• Самый крупный выигрыш: **{max_prize:.2f} USDT**"
+    )
+    
+    await message.answer(stats_text, parse_mode="Markdown")
+
+@dp.message_handler(commands=['history'])
+async def cmd_history(message: types.Message):
+    """Показывает историю последних 10 розыгрышей"""
+    
+    cursor.execute("""
+        SELECT round_number, draw_date, participants_count, total_bank, winner_username, winner_prize 
+        FROM draw_history 
+        ORDER BY draw_date DESC 
+        LIMIT 10
+    """)
+    rows = cursor.fetchall()
+    
+    if not rows:
+        await message.answer("📭 История розыгрышей пока пуста")
+        return
+    
+    text = "📜 **ПОСЛЕДНИЕ РОЗЫГРЫШИ**\n\n"
+    
+    for row in rows:
+        date_str = row['draw_date'].strftime("%d.%m.%Y %H:%M") if row['draw_date'] else "неизвестно"
+        text += (
+            f"🎲 **#{row['round_number']}** — {date_str}\n"
+            f"👥 {row['participants_count']} уч. | 💰 {row['total_bank']:.2f} USDT\n"
+            f"🏆 Победитель: {row['winner_username']} — {row['winner_prize']:.2f} USDT\n\n"
+        )
+    
+    await message.answer(text, parse_mode="Markdown")
+
 # === ОСНОВНЫЕ ОБРАБОТЧИКИ ===
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
@@ -309,6 +399,14 @@ async def members(message: types.Message):
     result = cursor.fetchone()
     count = result['count'] if result else 0
     await message.answer(f"👥 Всего участников: {count}")
+
+@dp.message_handler(lambda message: message.text == "📊 Статистика")
+async def stats_button(message: types.Message):
+    await cmd_stats(message)
+
+@dp.message_handler(lambda message: message.text == "📜 История")
+async def history_button(message: types.Message):
+    await cmd_history(message)
     
 @dp.message_handler(commands=['add'])
 async def add_participant(message: types.Message):
@@ -336,6 +434,7 @@ async def cmd_reset_db(message: types.Message):
     
     cursor.execute("DELETE FROM participants")
     cursor.execute("DELETE FROM transactions")
+    cursor.execute("DELETE FROM draw_history")
     conn.commit()
     await message.answer("✅ База данных очищена! Все TXID теперь будут считаться новыми.")
 
@@ -429,6 +528,25 @@ async def cmd_start_draw(message: types.Message):
         winner = await execute_provable_draw_bsc(CHANNEL_ID, round_number, participants, target_block)
         
         if winner:
+            # Получаем хэш блока для сохранения в историю
+            block_hash = get_bsc_block_hash(target_block)
+            
+            # Сохраняем историю розыгрыша
+            cursor.execute("""
+                INSERT INTO draw_history 
+                (round_number, participants_count, total_bank, winner_username, winner_prize, commission, target_block, block_hash) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                round_number, 
+                len(participants), 
+                len(participants) * ENTRY_FEE,
+                winner,
+                (len(participants) * ENTRY_FEE) * 0.9,
+                (len(participants) * ENTRY_FEE) * 0.1,
+                target_block,
+                block_hash
+            ))
+            
             cursor.execute("DELETE FROM participants")
             conn.commit()
             await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
@@ -443,7 +561,7 @@ async def handle_txid(message: types.Message):
     if message.text.startswith('/'):
         return
     
-    button_texts = ["🎟 Участвовать", "💰 Банк", "👥 Участники", "🎲 Выбрать победителя"]
+    button_texts = ["🎟 Участвовать", "💰 Банк", "👥 Участники", "📊 Статистика", "📜 История"]
     if message.text in button_texts:
         return
     
