@@ -1,6 +1,5 @@
 import os
 import logging
-import sqlite3
 import random
 import requests
 import time
@@ -9,6 +8,8 @@ from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 draw_in_progress = False
 
@@ -26,29 +27,31 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
-# === БАЗА ДАННЫХ ===
-conn = sqlite3.connect("crypto_fortuna.db", check_same_thread=False)
+# === ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ (SUPABASE) ===
+DATABASE_URL = os.getenv("DATABASE_URL")
+conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+conn.autocommit = True
 cursor = conn.cursor()
 
 # Таблица участников
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS participants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         username TEXT UNIQUE
     )
 """)
 
+# Таблица транзакций
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS transactions (
         txid TEXT PRIMARY KEY,
-        user_id INTEGER,
+        user_id BIGINT,
         username TEXT,
         amount REAL,
         status TEXT DEFAULT 'confirmed',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 """)
-conn.commit()
 
 # === КЛАВИАТУРА ===
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -64,7 +67,6 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
     if expected_address is None:
         expected_address = WALLET_ADDRESS
     
-    # Делаем несколько попыток с увеличивающейся задержкой
     for attempt in range(1, 4):
         try:
             time.sleep(10 * attempt)
@@ -72,7 +74,6 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
             api_key = os.getenv("MEGANODE_API_KEY")
             url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
             
-            # Получаем детали транзакции
             tx_payload = {
                 "jsonrpc": "2.0",
                 "method": "eth_getTransactionByHash",
@@ -92,7 +93,6 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
                     continue
                 return False, "Транзакция не найдена"
             
-            # Получаем receipt с логами
             receipt_payload = {
                 "jsonrpc": "2.0",
                 "method": "eth_getTransactionReceipt",
@@ -110,34 +110,21 @@ def check_bsc_payment(txid, expected_amount=5, expected_address=None):
             
             receipt = receipt_data['result']
             
-            # Контракт USDT в BSC
             usdt_contract = "0x55d398326f99059ff775485246999027b3197955"
-            
-            # Ищем Transfer событие в логах
             found_transfer = False
+            
             if 'logs' in receipt:
                 for log in receipt['logs']:
-                    # Проверяем, что это контракт USDT
                     if log['address'].lower() == usdt_contract.lower():
-                        # Проверяем, что это Transfer event (topics[0] - signature)
                         if len(log['topics']) >= 3 and log['topics'][0] == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef":
-                            # topics[1] - отправитель (from)
-                            # topics[2] - получатель (to)
-                            # data - сумма
-                            
-                            # Адрес получателя из topics[2]
-                            # Убираем '0x' и берём последние 40 символов
-                            to_address_hex = log['topics'][2][2:]  # убираем '0x'
+                            to_address_hex = log['topics'][2][2:]
                             if len(to_address_hex) > 40:
                                 to_address_hex = to_address_hex[-40:]
                             to_address = '0x' + to_address_hex
                             
-                            print(f"🔍 Найден Transfer:")
-                            print(f"   Получатель: {to_address}")
-                            print(f"   Ожидаемый: {expected_address}")
+                            print(f"🔍 Найден Transfer: Получатель: {to_address}, Ожидаемый: {expected_address}")
                             
                             if to_address.lower() == expected_address.lower():
-                                # Получаем сумму из data
                                 amount = int(log['data'], 16) / 10**18
                                 if amount >= expected_amount:
                                     return True, f"OK: {amount} USDT"
@@ -161,7 +148,6 @@ def get_current_bsc_block():
         api_key = os.getenv("MEGANODE_API_KEY")
         url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
         
-        # Используем eth_blockNumber JSON-RPC метод
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_blockNumber",
@@ -174,7 +160,6 @@ def get_current_bsc_block():
         if response.status_code == 200:
             data = response.json()
             if 'result' in data:
-                # Приходит в hex, конвертируем в десятичное число
                 block_number = int(data['result'], 16)
                 logging.info(f"✅ Текущий блок BSC: {block_number}")
                 return block_number
@@ -193,13 +178,12 @@ def get_bsc_block_hash(block_number):
         api_key = os.getenv("MEGANODE_API_KEY")
         url = f"https://bsc-mainnet.nodereal.io/v1/{api_key}"
         
-        # Конвертируем номер блока в hex
         block_hex = hex(block_number)
         
         payload = {
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
-            "params": [block_hex, False],  # False = не нужно транзакции
+            "params": [block_hex, False],
             "id": 1
         }
         
@@ -246,7 +230,6 @@ async def publish_round_info(chat_id, round_number, participants, target_block):
 async def execute_provable_draw_bsc(chat_id, round_number, participants, target_block):
     """Проводит provably fair розыгрыш на BSC (однократно)"""
     
-    # Защита от повторного выполнения того же розыгрыша
     if hasattr(execute_provable_draw_bsc, f"completed_{round_number}"):
         return None
     
@@ -315,14 +298,16 @@ async def participate(message: types.Message):
 @dp.message_handler(lambda message: message.text == "💰 Банк")
 async def bank(message: types.Message):
     cursor.execute("SELECT COUNT(*) FROM participants")
-    count = cursor.fetchone()[0]
+    result = cursor.fetchone()
+    count = result['count'] if result else 0
     total_bank = count * ENTRY_FEE
     await message.answer(f"💰 Текущий банк: {total_bank} USDT")
 
 @dp.message_handler(lambda message: message.text == "👥 Участники")
 async def members(message: types.Message):
     cursor.execute("SELECT COUNT(*) FROM participants")
-    count = cursor.fetchone()[0]
+    result = cursor.fetchone()
+    count = result['count'] if result else 0
     await message.answer(f"👥 Всего участников: {count}")
     
 @dp.message_handler(commands=['add'])
@@ -336,10 +321,11 @@ async def add_participant(message: types.Message):
         return
     
     try:
-        cursor.execute("INSERT INTO participants (username) VALUES (?)", (username,))
+        cursor.execute("INSERT INTO participants (username) VALUES (%s)", (username,))
         conn.commit()
         await message.answer(f"✅ Участник {username} добавлен!")
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         await message.answer("⚠️ Этот участник уже добавлен")
 
 @dp.message_handler(commands=['reset_db'])
@@ -362,30 +348,24 @@ async def cmd_find_txid(message: types.Message):
     args = message.get_args()
     
     if args:
-        # Получаем и чистим искомый TXID
         search_txid = args.strip().lower()
         
-        # Пробуем разные варианты поиска
-        cursor.execute("SELECT * FROM transactions WHERE txid = ?", (search_txid,))
+        cursor.execute("SELECT * FROM transactions WHERE txid = %s", (search_txid,))
         result = cursor.fetchone()
         
-        if not result:
-            # Пробуем без '0x' в начале, если есть
-            if search_txid.startswith('0x'):
-                search_txid_no_prefix = search_txid[2:]
-                cursor.execute("SELECT * FROM transactions WHERE txid LIKE ?", (f'%{search_txid_no_prefix}%',))
-                result = cursor.fetchone()
+        if not result and search_txid.startswith('0x'):
+            search_txid_no_prefix = search_txid[2:]
+            cursor.execute("SELECT * FROM transactions WHERE txid LIKE %s", (f'%{search_txid_no_prefix}%',))
+            result = cursor.fetchone()
         
         if not result:
-            # Пробуем частичное совпадение по последним символам
             short_txid = search_txid[-20:] if len(search_txid) > 20 else search_txid
-            cursor.execute("SELECT * FROM transactions WHERE txid LIKE ?", (f'%{short_txid}%',))
+            cursor.execute("SELECT * FROM transactions WHERE txid LIKE %s", (f'%{short_txid}%',))
             result = cursor.fetchone()
         
         if result:
             await message.answer(
-                f"✅ TXID **НАЙДЕН** в базе!\n\n"
-                f"Запись: {result}",
+                f"✅ TXID **НАЙДЕН** в базе!\n\nЗапись: {result}",
                 parse_mode="Markdown"
             )
         else:
@@ -395,15 +375,14 @@ async def cmd_find_txid(message: types.Message):
                 parse_mode="Markdown"
             )
     
-    # Всегда показываем последние 10 записей
     cursor.execute("SELECT txid, username, created_at FROM transactions ORDER BY created_at DESC LIMIT 10")
     rows = cursor.fetchall()
     
     if rows:
         text = "📋 **Последние 10 TXID в базе:**\n\n"
-        for tx, uname, dt in rows:
-            short_tx = tx[:15] + "..." + tx[-10:]
-            text += f"• `{short_tx}` — {uname} — {dt}\n"
+        for row in rows:
+            short_tx = row['txid'][:15] + "..." + row['txid'][-10:]
+            text += f"• `{short_tx}` — {row['username']} — {row['created_at']}\n"
         await message.answer(text, parse_mode="Markdown")
     else:
         await message.answer("📭 База транзакций пуста.")
@@ -416,19 +395,18 @@ async def cmd_start_draw(message: types.Message):
         await message.answer("❌ Эта команда только для админа")
         return
     
-    # Проверяем, не идёт ли уже розыгрыш
     if draw_in_progress:
         await message.answer("⚠️ **Розыгрыш уже запущен!** Подождите завершения.")
         return
     
     cursor.execute("SELECT username FROM participants")
-    participants = [f"@{row[0]}" for row in cursor.fetchall()]
+    rows = cursor.fetchall()
+    participants = [f"@{row['username']}" for row in rows]
     
     if len(participants) < 2:
         await message.answer("❌ Для розыгрыша нужно минимум 2 участника")
         return
     
-    # Устанавливаем флаг, что розыгрыш начался
     draw_in_progress = True
     
     try:
@@ -458,21 +436,17 @@ async def cmd_start_draw(message: types.Message):
             await message.answer(f"❌ Розыгрыш #{round_number} не удался. Участники сохранены.")
     
     finally:
-        # ВАЖНО: снимаем блокировку в любом случае
         draw_in_progress = False
 
 @dp.message_handler()
 async def handle_txid(message: types.Message):
-    # Игнорируем команды (начинаются с /)
     if message.text.startswith('/'):
         return
     
-    # Игнорируем текст кнопок
     button_texts = ["🎟 Участвовать", "💰 Банк", "👥 Участники", "🎲 Выбрать победителя"]
     if message.text in button_texts:
         return
     
-    # Игнорируем слишком короткие или длинные сообщения (TXID обычно 66 символов)
     if len(message.text) < 60 or len(message.text) > 70:
         await message.answer("❌ Это не похоже на TXID. Отправь хэш транзакции (64-66 символов).")
         return
@@ -481,14 +455,12 @@ async def handle_txid(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username or f"user_{user_id}"
     
-    # 1. Проверяем, есть ли TXID в базе (ЭТО ГЛАВНОЕ)
-    cursor.execute("SELECT * FROM transactions WHERE txid = ?", (txid,))
+    cursor.execute("SELECT * FROM transactions WHERE txid = %s", (txid,))
     if cursor.fetchone():
         await message.answer("❌ Этот TXID уже был использован")
         return
 
-    # 2. Проверяем, не участвует ли уже этот пользователь
-    cursor.execute("SELECT * FROM participants WHERE username = ?", (f"@{username}",))
+    cursor.execute("SELECT * FROM participants WHERE username = %s", (f"@{username}",))
     if cursor.fetchone():
         await message.answer("❌ Вы уже участвуете в текущем розыгрыше")
         return
@@ -503,26 +475,22 @@ async def handle_txid(message: types.Message):
     success, msg = check_bsc_payment(txid)
     
     if success:
-        # 3. Сохраняем TXID в любом случае (INSERT OR IGNORE)
         cursor.execute(
-            "INSERT OR IGNORE INTO transactions (txid, user_id, username, amount) VALUES (?, ?, ?, ?)",
+            "INSERT INTO transactions (txid, user_id, username, amount) VALUES (%s, %s, %s, %s) ON CONFLICT (txid) DO NOTHING",
             (txid, user_id, username, 5)
         )
         
-        # 4. Добавляем участника
         try:
             cursor.execute(
-                "INSERT INTO participants (username) VALUES (?)", 
+                "INSERT INTO participants (username) VALUES (%s)", 
                 (f"@{username}",)
             )
             conn.commit()
             await message.answer(f"✅ Транзакция подтверждена!\nТы добавлен в розыгрыш 🎟")
-        except sqlite3.IntegrityError:
-            conn.commit()  # TXID уже сохранился, даже если участник не добавился
+        except psycopg2.errors.UniqueViolation:
+            conn.commit()
             await message.answer("⚠️ Вы уже участвуете в этом розыгрыше")
     else:
-        # Даже при ошибке API коммитим, чтобы сохранить факт попытки? 
-        # Лучше не надо, сохраняем только успешные.
         await message.answer(f"❌ Ошибка: {msg}")
     
     await wait_msg.delete()
