@@ -549,6 +549,50 @@ async def cmd_find_txid(message: types.Message):
     else:
         await message.answer("📭 База транзакций пуста.")
 
+@dp.message_handler(commands=['announce'])
+async def cmd_announce(message: types.Message):
+    """Публикует красивый пост-анонс о начале розыгрыша (только для админа)"""
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    # Получаем текущие данные
+    cursor.execute("SELECT COUNT(*) FROM participants")
+    count = cursor.fetchone()['count'] or 0
+    current_bank = count * ENTRY_FEE
+    
+    # Получаем данные последнего победителя
+    cursor.execute("""
+        SELECT winner_username, winner_prize FROM draw_history 
+        ORDER BY draw_date DESC LIMIT 1
+    """)
+    last_winner = cursor.fetchone()
+    
+    last_winner_text = f"@{last_winner['winner_username']}" if last_winner else "пока нет"
+    last_prize_text = f"{last_winner['winner_prize']:.2f}" if last_winner else "0"
+    
+    # Формируем пост (можно выбрать любой вариант)
+    post = (
+        f"🎲 **CRYPTO FORTUNA — НОВЫЙ РОЗЫГРЫШ!** 🎲\n\n"
+        f"💰 **Банк уже собран:** {current_bank} USDT\n"
+        f"👥 **Участников:** {count}\n"
+        f"🎟 **Взнос:** {ENTRY_FEE} USDT (BSC)\n\n"
+        f"🔐 **Почему нам можно верить:**\n"
+        f"• Победитель определяется хэшем блока BSC (проверяемо!)\n"
+        f"• Все транзакции публичны\n"
+        f"• История розыгрышей открыта\n\n"
+        f"🚀 **Как участвовать:**\n"
+        f"1️⃣ Перейди в бота: @RealCryptoFortunaBot\n"
+        f"2️⃣ Нажми «Участвовать»\n"
+        f"3️⃣ Отправь {ENTRY_FEE} USDT на указанный адрес\n"
+        f"4️⃣ Отправь TXID боту — и ты в игре!\n\n"
+        f"⏳ **Розыгрыш состоится:** через 24 часа\n"
+        f"🏆 **Предыдущий победитель:** {last_winner_text} выиграл {last_prize_text} USDT\n\n"
+        f"Не упусти свой шанс! Удача любит смелых 🔥"
+    )
+    
+    await bot.send_message(CHANNEL_ID, post, parse_mode="Markdown")
+    await message.answer("✅ Пост-анонс опубликован в канале!")
+
 @dp.message_handler(commands=['start_draw'])
 async def cmd_start_draw(message: types.Message):
     global draw_in_progress
