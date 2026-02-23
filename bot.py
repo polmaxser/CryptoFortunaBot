@@ -78,7 +78,8 @@ keyboard.add(
 )
 keyboard.add(
     KeyboardButton("📊 Статистика"),
-    KeyboardButton("📜 История")
+    KeyboardButton("📜 История"),
+    KeyboardButton("📆 Неделя")
 )
 
 # === ФУНКЦИИ ПРОВЕРКИ ПЛАТЕЖЕЙ BSC ===
@@ -248,7 +249,7 @@ async def publish_round_info(chat_id, round_number, participants, target_block):
 
 # === ФУНКЦИИ ДЛЯ ПРОВЕДЕНИЯ РОЗЫГРЫША ===
 async def execute_provable_draw_bsc(chat_id, round_number, participants, target_block):
-    """Проводит provably fair розыгрыш на BSC (однократно)"""
+    """Проводит provably fair розыгрыш на BSC и публикует красивый пост"""
     
     if hasattr(execute_provable_draw_bsc, f"completed_{round_number}"):
         return None
@@ -278,19 +279,36 @@ async def execute_provable_draw_bsc(chat_id, round_number, participants, target_
     winner_index = hash_int % len(participants)
     winner = participants[winner_index]
     
+    # Рассчитываем данные
+    total_users = len(participants)
+    bank = total_users * ENTRY_FEE
+    commission = bank * 0.10
+    winner_prize = bank - commission
+    
+    # Формируем красивый пост
     result = (
-        f"🏆 **РОЗЫГРЫШ #{round_number} ЗАВЕРШЁН!**\n\n"
-        f"✅ **Блок BSC:** #{target_block}\n"
-        f"🔗 **Хэш блока:**\n`{block_hash[:32]}...`\n\n"
-        f"**Расчёт:**\n"
-        f"`{block_hash[:16]}...` (хэш) % {len(participants)} = **{winner_index + 1}**\n\n"
+        f"🏆 **РОЗЫГРЫШ #{round_number} ЗАВЕРШЁН!** 🏆\n\n"
+        f"📅 **Дата:** {time.strftime('%d.%m.%Y %H:%M')} (UTC)\n"
+        f"🔗 **Блок BSC:** [#{target_block}](https://bscscan.com/block/{target_block})\n"
+        f"🔐 **Хэш блока:**\n`{block_hash[:32]}...`\n\n"
+        f"📊 **Детали розыгрыша:**\n"
+        f"👥 Участников: **{total_users}**\n"
+        f"💰 Общий банк: **{bank:.2f} USDT**\n"
+        f"💸 Комиссия (10%): **{commission:.2f} USDT**\n"
+        f"🎁 Приз победителю: **{winner_prize:.2f} USDT**\n\n"
+        f"🧮 **Расчёт победителя:**\n"
+        f"`{block_hash[:16]}...` (хэш) % {total_users} = **{winner_index + 1}**\n\n"
         f"🎉 **Победитель: Билет №{winner_index + 1} — {winner}**\n\n"
-        f"🔍 **[Проверить на BscScan](https://bscscan.com/block/{target_block})**"
+        f"🔍 **[Проверить на BscScan](https://bscscan.com/block/{target_block})**\n\n"
+        f"Следующий розыгрыш уже скоро! 🚀"
     )
     
-    await bot.edit_message_text(
-        result, chat_id, wait_msg.message_id,
-        parse_mode="Markdown", disable_web_page_preview=True
+    # Отправляем в канал
+    await bot.send_message(
+        CHANNEL_ID, 
+        result,
+        parse_mode="Markdown",
+        disable_web_page_preview=True
     )
     
     return winner
@@ -365,6 +383,47 @@ async def cmd_history(message: types.Message):
     
     await message.answer(text, parse_mode="Markdown")
 
+@dp.message_handler(commands=['weekly'])
+async def cmd_weekly(message: types.Message):
+    """Показывает статистику за последние 7 дней"""
+    
+    # Розыгрыши за неделю
+    cursor.execute("""
+        SELECT COUNT(*) as draws, 
+               SUM(participants_count) as participants,
+               SUM(total_bank) as total_bank,
+               SUM(commission) as total_commission,
+               MAX(winner_prize) as max_prize
+        FROM draw_history 
+        WHERE draw_date > NOW() - INTERVAL '7 days'
+    """)
+    stats = cursor.fetchone()
+    
+    # Лучший победитель (кто чаще выигрывал)
+    cursor.execute("""
+        SELECT winner_username, COUNT(*) as wins
+        FROM draw_history 
+        WHERE draw_date > NOW() - INTERVAL '7 days'
+        GROUP BY winner_username
+        ORDER BY wins DESC
+        LIMIT 1
+    """)
+    top_winner = cursor.fetchone()
+    
+    week_text = (
+        f"📆 **СТАТИСТИКА ЗА НЕДЕЛЮ**\n\n"
+        f"🎲 Розыгрышей: **{stats['draws'] or 0}**\n"
+        f"👥 Участников: **{stats['participants'] or 0}**\n"
+        f"💰 Общий банк: **{stats['total_bank'] or 0:.2f} USDT**\n"
+        f"💸 Комиссия: **{stats['total_commission'] or 0:.2f} USDT**\n"
+        f"🏆 Макс. выигрыш: **{stats['max_prize'] or 0:.2f} USDT**\n"
+    )
+    
+    if top_winner:
+        week_text += f"👑 Лучший игрок: {top_winner['winner_username']} ({top_winner['wins']} побед)\n"
+    
+    await bot.send_message(message.chat.id, week_text, parse_mode="Markdown")
+
 # === ОСНОВНЫЕ ОБРАБОТЧИКИ ===
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
@@ -407,6 +466,10 @@ async def stats_button(message: types.Message):
 @dp.message_handler(lambda message: message.text == "📜 История")
 async def history_button(message: types.Message):
     await cmd_history(message)
+
+@dp.message_handler(lambda message: message.text == "📆 Неделя")
+async def week_button(message: types.Message):
+    await cmd_weekly(message)
     
 @dp.message_handler(commands=['add'])
 async def add_participant(message: types.Message):
@@ -561,7 +624,7 @@ async def handle_txid(message: types.Message):
     if message.text.startswith('/'):
         return
     
-    button_texts = ["🎟 Участвовать", "💰 Банк", "👥 Участники", "📊 Статистика", "📜 История"]
+    button_texts = ["🎟 Участвовать", "💰 Банк", "👥 Участники", "📊 Статистика", "📜 История", "📆 Неделя"]
     if message.text in button_texts:
         return
     
