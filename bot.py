@@ -456,13 +456,6 @@ async def participate(message: types.Message):
         "Он выглядит как длинный набор букв и цифр, начинается с 0x",
         parse_mode="Markdown"
     )
-    
-    # Добавляем инструкцию по TXID
-    await message.answer(
-        "📤 **После оплаты отправь сюда TXID** (хэш транзакции)\n"
-        "Он выглядит как длинный набор букв и цифр, начинается с 0x",
-        parse_mode="Markdown"
-    )
 
 @dp.message_handler(lambda message: message.text == "💰 Банк")
 async def bank(message: types.Message):
