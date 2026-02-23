@@ -10,6 +10,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 draw_in_progress = False
 
@@ -436,11 +437,33 @@ async def start(message: types.Message):
 
 @dp.message_handler(lambda message: message.text == "🎟 Участвовать")
 async def participate(message: types.Message):
+    # Отправляем инструкцию
     await message.answer(
-        f"🔹 Для участия переведи {ENTRY_FEE} USDT\n"
-        f"🔹 Сеть: BSC (BEP-20)\n"
-        f"🔹 Адрес:\n`{WALLET_ADDRESS}`\n\n"
-        "📤 После оплаты отправь сюда TXID (хэш транзакции)",
+        f"🔹 **Для участия переведи {ENTRY_FEE} USDT**\n"
+        f"🔹 Сеть: **BSC (BEP-20)**\n\n"
+        f"👇 **Нажми на кнопку ниже, чтобы скопировать адрес** 👇",
+        parse_mode="Markdown"
+    )
+    
+    # Создаём кнопку для копирования адреса
+    copy_keyboard = InlineKeyboardMarkup(row_width=1)
+    copy_button = InlineKeyboardButton(
+        text="📋 КОПИРОВАТЬ АДРЕС КОШЕЛЬКА", 
+        callback_data=f"copy_{WALLET_ADDRESS}"
+    )
+    copy_keyboard.add(copy_button)
+    
+    # Отправляем сообщение с адресом и кнопкой
+    await message.answer(
+        f"`{WALLET_ADDRESS}`",  # Моноширинный шрифт для лёгкого копирования
+        reply_markup=copy_keyboard,
+        parse_mode="Markdown"
+    )
+    
+    # Добавляем инструкцию по TXID
+    await message.answer(
+        "📤 **После оплаты отправь сюда TXID** (хэш транзакции)\n"
+        "Он выглядит как длинный набор букв и цифр, начинается с 0x",
         parse_mode="Markdown"
     )
 
@@ -470,6 +493,28 @@ async def history_button(message: types.Message):
 @dp.message_handler(lambda message: message.text == "📆 Неделя")
 async def week_button(message: types.Message):
     await cmd_weekly(message)
+
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('copy_'))
+async def process_copy_callback(callback_query: types.CallbackQuery):
+    # Извлекаем адрес из callback_data
+    address = callback_query.data.replace('copy_', '')
+    
+    # Отправляем сообщение с адресом (уведомление не всплывающее)
+    await bot.answer_callback_query(
+        callback_query.id,
+        text="✅ Адрес скопирован! Вставь его в кошельке",
+        show_alert=False  # True если хочешь всплывающее окно
+    )
+    
+    # Можно также отредактировать сообщение, чтобы показать, что адрес скопирован
+    await bot.edit_message_text(
+        f"✅ Адрес скопирован!\n\n`{address}`",
+        callback_query.message.chat.id,
+        callback_query.message.message_id,
+        parse_mode="Markdown"
+    )
     
 @dp.message_handler(commands=['add'])
 async def add_participant(message: types.Message):
