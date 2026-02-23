@@ -10,7 +10,6 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import uvicorn
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 draw_in_progress = False
 
@@ -441,22 +440,20 @@ async def participate(message: types.Message):
     await message.answer(
         f"🔹 **Для участия переведи {ENTRY_FEE} USDT**\n"
         f"🔹 Сеть: **BSC (BEP-20)**\n\n"
-        f"👇 **Нажми на кнопку ниже, чтобы скопировать адрес** 👇",
+        f"👇 **Адрес для перевода:**",
         parse_mode="Markdown"
     )
     
-    # Создаём кнопку с URL-схемой для копирования
-    copy_keyboard = InlineKeyboardMarkup(row_width=1)
-    copy_button = InlineKeyboardButton(
-        text="📋 КОПИРОВАТЬ АДРЕС КОШЕЛЬКА", 
-        url=f"tg://copy?text={WALLET_ADDRESS}"
-    )
-    copy_keyboard.add(copy_button)
-    
-    # Отправляем сообщение с адресом и кнопкой
+    # Отправляем отдельное сообщение ТОЛЬКО с адресом
     await message.answer(
         f"`{WALLET_ADDRESS}`",
-        reply_markup=copy_keyboard,
+        parse_mode="Markdown"
+    )
+    
+    # Добавляем инструкцию по TXID
+    await message.answer(
+        "📤 **После оплаты отправь сюда TXID** (хэш транзакции)\n"
+        "Он выглядит как длинный набор букв и цифр, начинается с 0x",
         parse_mode="Markdown"
     )
     
