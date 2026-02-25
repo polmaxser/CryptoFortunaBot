@@ -531,8 +531,8 @@ async def show_sources_stats(message: types.Message):
 # === ОСНОВНЫЕ ОБРАБОТЧИКИ ===
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
-# ВРЕМЕННО: принудительно исправляем ссылку
-correct_channel = "@real_crypto_fortuna"
+    # ВРЕМЕННО: принудительно исправляем ссылку
+    correct_channel = "@real_crypto_fortuna"
     args = message.get_args()
     source_info = {
         'source': 'direct',
