@@ -76,7 +76,6 @@ cursor.execute("""
         participants_count INTEGER,
         total_bank REAL,
         winner_username TEXT,
-        winner_ticket INTEGER,
         winner_prize REAL,
         commission REAL,
         target_block INTEGER,
@@ -84,18 +83,25 @@ cursor.execute("""
     )
 """)
 
-# Таблица для отслеживания источников переходов
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS referral_sources (
-        id SERIAL PRIMARY KEY,
-        user_id BIGINT,
-        source TEXT,
-        medium TEXT,
-        campaign TEXT,
-        invited_by BIGINT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-""")
+# Добавляем все недостающие колонки по очереди
+try:
+    cursor.execute("ALTER TABLE draw_history ADD COLUMN winner_ticket INTEGER")
+    conn.commit()
+    logging.info("✅ Колонка winner_ticket добавлена")
+except psycopg2.errors.DuplicateColumn:
+    pass
+except Exception as e:
+    logging.error(f"Ошибка при добавлении winner_ticket: {e}")
+
+# Также проверим, есть ли другие новые колонки
+try:
+    cursor.execute("ALTER TABLE draw_history ADD COLUMN block_hash TEXT")
+    conn.commit()
+    logging.info("✅ Колонка block_hash добавлена")
+except psycopg2.errors.DuplicateColumn:
+    pass
+except Exception as e:
+    logging.error(f"Ошибка при добавлении block_hash: {e}")
 
 # === КЛАВИАТУРА ===
 keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
