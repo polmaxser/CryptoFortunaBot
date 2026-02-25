@@ -562,11 +562,16 @@ async def start(message: types.Message):
     ))
     conn.commit()
     
+    # Отправляем приветствие с ссылкой на канал
     await message.answer(
-        "🚀 Добро пожаловать в Crypto Fortuna Bot!\n"
-        f"💰 Взнос: {ENTRY_FEE} USDT\n\n"
+        "🚀 Добро пожаловать в Crypto Fortuna Bot!\n\n"
+        "📢 **Обязательно подпишись на наш канал:**\n"
+        f"{CHANNEL_ID}\n\n"
+        "Там публикуются все результаты розыгрышей и новости.\n\n"
+        f"💰 Взнос: {ENTRY_FEE} USDT\n"
         "Выбери действие 👇",
-        reply_markup=keyboard
+        reply_markup=keyboard,
+        parse_mode="Markdown"
     )
 
 @dp.message_handler(lambda message: message.text == "🎟 Участвовать")
