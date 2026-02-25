@@ -531,8 +531,6 @@ async def show_sources_stats(message: types.Message):
 # === ОСНОВНЫЕ ОБРАБОТЧИКИ ===
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
-    # ВРЕМЕННО: принудительно исправляем ссылку
-    correct_channel = "@real_crypto_fortuna"
     args = message.get_args()
     source_info = {
         'source': 'direct',
@@ -564,11 +562,14 @@ async def start(message: types.Message):
     ))
     conn.commit()
     
-    # Отправляем приветствие с ссылкой на канал
+    # Жёстко задаём правильную ссылку
+    channel_link = "@real_crypto_fortuna"
+    
+    # Отправляем приветствие
     await message.answer(
         "🚀 Добро пожаловать в Crypto Fortuna Bot!\n\n"
         "📢 **Обязательно подпишись на наш канал:**\n"
-        f"{correct_channel}\n\n"
+        f"{channel_link}\n\n"
         "Там публикуются все результаты розыгрышей и новости.\n\n"
         f"💰 Взнос: {ENTRY_FEE} USDT\n"
         "Выбери действие 👇",
