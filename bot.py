@@ -44,6 +44,17 @@ cursor.execute("""
     )
 """)
 
+# Если таблица уже существовала без ticket_number, добавляем колонку
+try:
+    cursor.execute("ALTER TABLE participants ADD COLUMN ticket_number INTEGER UNIQUE")
+    conn.commit()
+    logging.info("✅ Колонка ticket_number добавлена в существующую таблицу")
+except psycopg2.errors.DuplicateColumn:
+    # Колонка уже есть — всё ок
+    pass
+except Exception as e:
+    logging.error(f"Ошибка при добавлении колонки: {e}")
+
 # Таблица транзакций
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS transactions (
