@@ -4,6 +4,7 @@ import random
 import requests
 import time
 import asyncio
+import hashlib
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
@@ -33,11 +34,13 @@ conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 conn.autocommit = True
 cursor = conn.cursor()
 
-# Таблица участников
+# Таблица участников (с номерами билетов)
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS participants (
         id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE
+        ticket_number INTEGER UNIQUE,
+        username TEXT UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 """)
 
@@ -62,10 +65,24 @@ cursor.execute("""
         participants_count INTEGER,
         total_bank REAL,
         winner_username TEXT,
+        winner_ticket INTEGER,
         winner_prize REAL,
         commission REAL,
         target_block INTEGER,
         block_hash TEXT
+    )
+""")
+
+# Таблица для отслеживания источников переходов
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS referral_sources (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT,
+        source TEXT,
+        medium TEXT,
+        campaign TEXT,
+        invited_by BIGINT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 """)
 
@@ -225,30 +242,26 @@ def get_bsc_block_hash(block_number):
     
     return None
 
-async def publish_round_info(chat_id, round_number, participants, target_block):
+async def publish_round_info(chat_id, round_number, participants_with_tickets, target_block):
     """Публикует информацию о раунде перед розыгрышем"""
-    tickets = []
-    for i, user in enumerate(participants, 1):
-        tickets.append(f"{i}. {user}")
-    
-    tickets_text = "\n".join(tickets[:20])
-    if len(participants) > 20:
-        tickets_text += f"\n... и ещё {len(participants) - 20}"
+    tickets_text = "\n".join(participants_with_tickets[:20])
+    if len(participants_with_tickets) > 20:
+        tickets_text += f"\n... и ещё {len(participants_with_tickets) - 20}"
     
     message = (
         f"🎲 **РОЗЫГРЫШ #{round_number}**\n\n"
-        f"🎟 **Всего билетов:** {len(participants)}\n\n"
+        f"🎟 **Всего билетов:** {len(participants_with_tickets)}\n\n"
         f"**Список участников:**\n{tickets_text}\n\n"
         f"🔐 **Прозрачный выбор победителя:**\n"
         f"1️⃣ Будет взят хэш блока BSC **#{target_block}**\n"
-        f"2️⃣ Победитель = хэш % {len(participants)}\n"
+        f"2️⃣ Победитель = хэш % {len(participants_with_tickets)}\n"
         f"3️⃣ Результат появится здесь сразу после получения блока\n\n"
         f"⏳ Ожидайте розыгрыша..."
     )
     await bot.send_message(chat_id, message, parse_mode="Markdown")
 
 # === ФУНКЦИИ ДЛЯ ПРОВЕДЕНИЯ РОЗЫГРЫША ===
-async def execute_provable_draw_bsc(chat_id, round_number, participants, target_block):
+async def execute_provable_draw_bsc(chat_id, round_number, participants_with_tickets, target_block):
     """Проводит provably fair розыгрыш на BSC и публикует красивый пост"""
     
     if hasattr(execute_provable_draw_bsc, f"completed_{round_number}"):
@@ -276,11 +289,16 @@ async def execute_provable_draw_bsc(chat_id, round_number, participants, target_
         return None
     
     hash_int = int(block_hash, 16)
-    winner_index = hash_int % len(participants)
-    winner = participants[winner_index]
+    winner_index = hash_int % len(participants_with_tickets)
+    winner_line = participants_with_tickets[winner_index]
+    
+    # Извлекаем номер билета и username
+    winner_parts = winner_line.split('. ')
+    winner_ticket = int(winner_parts[0])
+    winner_username = winner_parts[1] if len(winner_parts) > 1 else "Неизвестно"
     
     # Рассчитываем данные
-    total_users = len(participants)
+    total_users = len(participants_with_tickets)
     bank = total_users * ENTRY_FEE
     commission = bank * 0.10
     winner_prize = bank - commission
@@ -297,8 +315,8 @@ async def execute_provable_draw_bsc(chat_id, round_number, participants, target_
         f"💸 Комиссия (10%): **{commission:.2f} USDT**\n"
         f"🎁 Приз победителю: **{winner_prize:.2f} USDT**\n\n"
         f"🧮 **Расчёт победителя:**\n"
-        f"`{block_hash[:16]}...` (хэш) % {total_users} = **{winner_index + 1}**\n\n"
-        f"🎉 **Победитель: Билет №{winner_index + 1} — {winner}**\n\n"
+        f"`{block_hash[:16]}...` (хэш) % {total_users} = **{winner_ticket}**\n\n"
+        f"🎉 **Победитель: Билет №{winner_ticket} — {winner_username}**\n\n"
         f"🔍 **[Проверить на BscScan](https://bscscan.com/block/{target_block})**\n\n"
         f"Следующий розыгрыш уже скоро! 🚀"
     )
@@ -311,34 +329,28 @@ async def execute_provable_draw_bsc(chat_id, round_number, participants, target_
         disable_web_page_preview=True
     )
     
-    return winner
+    return winner_username, winner_ticket, winner_prize
 
 # === СТАТИСТИКА И ИСТОРИЯ ===
 @dp.message_handler(commands=['stats'])
 async def cmd_stats(message: types.Message):
     """Показывает общую статистику бота"""
     
-    # Общее количество розыгрышей
     cursor.execute("SELECT COUNT(*) FROM draw_history")
     total_draws = cursor.fetchone()['count'] or 0
     
-    # Всего участников за всё время
     cursor.execute("SELECT SUM(participants_count) FROM draw_history")
     total_participants = cursor.fetchone()['sum'] or 0
     
-    # Общий банк за всё время
     cursor.execute("SELECT SUM(total_bank) FROM draw_history")
     total_bank_all = cursor.fetchone()['sum'] or 0
     
-    # Общая комиссия
     cursor.execute("SELECT SUM(commission) FROM draw_history")
     total_commission = cursor.fetchone()['sum'] or 0
     
-    # Самый крупный выигрыш
     cursor.execute("SELECT MAX(winner_prize) FROM draw_history")
     max_prize = cursor.fetchone()['max'] or 0
     
-    # Самый крупный банк
     cursor.execute("SELECT MAX(total_bank) FROM draw_history")
     max_bank = cursor.fetchone()['max'] or 0
     
@@ -360,7 +372,7 @@ async def cmd_history(message: types.Message):
     """Показывает историю последних 10 розыгрышей"""
     
     cursor.execute("""
-        SELECT round_number, draw_date, participants_count, total_bank, winner_username, winner_prize 
+        SELECT round_number, draw_date, participants_count, total_bank, winner_username, winner_ticket, winner_prize 
         FROM draw_history 
         ORDER BY draw_date DESC 
         LIMIT 10
@@ -378,7 +390,7 @@ async def cmd_history(message: types.Message):
         text += (
             f"🎲 **#{row['round_number']}** — {date_str}\n"
             f"👥 {row['participants_count']} уч. | 💰 {row['total_bank']:.2f} USDT\n"
-            f"🏆 Победитель: {row['winner_username']} — {row['winner_prize']:.2f} USDT\n\n"
+            f"🏆 Билет №{row['winner_ticket']} — {row['winner_username']} — {row['winner_prize']:.2f} USDT\n\n"
         )
     
     await message.answer(text, parse_mode="Markdown")
@@ -387,7 +399,6 @@ async def cmd_history(message: types.Message):
 async def cmd_weekly(message: types.Message):
     """Показывает статистику за последние 7 дней"""
     
-    # Розыгрыши за неделю
     cursor.execute("""
         SELECT COUNT(*) as draws, 
                SUM(participants_count) as participants,
@@ -399,7 +410,6 @@ async def cmd_weekly(message: types.Message):
     """)
     stats = cursor.fetchone()
     
-    # Лучший победитель (кто чаще выигрывал)
     cursor.execute("""
         SELECT winner_username, COUNT(*) as wins
         FROM draw_history 
@@ -424,9 +434,117 @@ async def cmd_weekly(message: types.Message):
     
     await bot.send_message(message.chat.id, week_text, parse_mode="Markdown")
 
+# === РЕФЕРАЛЬНАЯ СИСТЕМА И АНАЛИТИКА ===
+@dp.message_handler(commands=['gen_link'])
+async def generate_referral_link(message: types.Message):
+    """Генерирует ссылку для рекламного канала (только для админа)"""
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    args = message.get_args().split()
+    if len(args) < 2:
+        await message.answer(
+            "❌ Используй: /gen_link [название_канала] [название_кампании]\n"
+            "Пример: /gen_link crypto_channel march_2026"
+        )
+        return
+    
+    channel_name = args[0]
+    campaign = args[1]
+    
+    unique_code = hashlib.md5(f"{channel_name}_{campaign}_{time.time()}".encode()).hexdigest()[:8]
+    
+    bot_username = (await bot.get_me()).username
+    ref_link = f"https://t.me/{bot_username}?start=ref_{channel_name}_{campaign}_{unique_code}"
+    
+    await message.answer(
+        f"✅ **Ссылка для канала {channel_name}:**\n\n"
+        f"`{ref_link}`\n\n"
+        f"📊 **Параметры:**\n"
+        f"• Канал: {channel_name}\n"
+        f"• Кампания: {campaign}\n"
+        f"• Код: {unique_code}\n\n"
+        f"Отправь эту ссылку администратору канала для размещения.",
+        parse_mode="Markdown"
+    )
+
+@dp.message_handler(commands=['sources'])
+async def show_sources_stats(message: types.Message):
+    """Показывает статистику по источникам переходов (только для админа)"""
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    cursor.execute("""
+        SELECT 
+            source, 
+            COUNT(*) as users,
+            COUNT(DISTINCT user_id) as unique_users,
+            COUNT(CASE WHEN invited_by IS NOT NULL THEN 1 END) as referrals
+        FROM referral_sources 
+        GROUP BY source 
+        ORDER BY users DESC
+    """)
+    rows = cursor.fetchall()
+    
+    if not rows:
+        await message.answer("📭 Нет данных по источникам")
+        return
+    
+    text = "📊 **СТАТИСТИКА ПО ИСТОЧНИКАМ**\n\n"
+    
+    for row in rows:
+        cursor.execute("""
+            SELECT COUNT(*) FROM participants p 
+            JOIN referral_sources rs ON p.username = '@' || rs.user_id::text
+            WHERE rs.source = %s
+        """, (row['source'],))
+        participants = cursor.fetchone()['count'] or 0
+        conversion_rate = (participants / row['users']) * 100 if row['users'] > 0 else 0
+        
+        text += (
+            f"📌 **{row['source']}**\n"
+            f"   👥 Переходов: {row['users']}\n"
+            f"   🎟 Участников: {participants}\n"
+            f"   📈 Конверсия: {conversion_rate:.1f}%\n"
+            f"   🔗 Рефералов: {row['referrals']}\n\n"
+        )
+    
+    await message.answer(text, parse_mode="Markdown")
+
 # === ОСНОВНЫЕ ОБРАБОТЧИКИ ===
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
+    args = message.get_args()
+    source_info = {
+        'source': 'direct',
+        'medium': 'direct',
+        'campaign': 'direct',
+        'invited_by': None
+    }
+    
+    if args and args.startswith('ref_'):
+        parts = args.split('_')
+        if len(parts) >= 4:
+            source_info['source'] = parts[1]
+            source_info['campaign'] = parts[2]
+            source_info['medium'] = 'post'
+            
+            if len(parts) > 4 and parts[4].isdigit():
+                source_info['invited_by'] = int(parts[4])
+    
+    cursor.execute("""
+        INSERT INTO referral_sources 
+        (user_id, source, medium, campaign, invited_by) 
+        VALUES (%s, %s, %s, %s, %s)
+    """, (
+        message.from_user.id,
+        source_info['source'],
+        source_info['medium'],
+        source_info['campaign'],
+        source_info['invited_by']
+    ))
+    conn.commit()
+    
     await message.answer(
         "🚀 Добро пожаловать в Crypto Fortuna Bot!\n"
         f"💰 Взнос: {ENTRY_FEE} USDT\n\n"
@@ -436,7 +554,6 @@ async def start(message: types.Message):
 
 @dp.message_handler(lambda message: message.text == "🎟 Участвовать")
 async def participate(message: types.Message):
-    # Отправляем инструкцию
     await message.answer(
         f"🔹 **Для участия переведи {ENTRY_FEE} USDT**\n"
         f"🔹 Сеть: **BSC (BEP-20)**\n\n"
@@ -444,13 +561,11 @@ async def participate(message: types.Message):
         parse_mode="Markdown"
     )
     
-    # Отправляем отдельное сообщение ТОЛЬКО с адресом
     await message.answer(
         f"`{WALLET_ADDRESS}`",
         parse_mode="Markdown"
     )
     
-    # Добавляем инструкцию по TXID
     await message.answer(
         "📤 **После оплаты отправь сюда TXID** (хэш транзакции)\n"
         "Он выглядит как длинный набор букв и цифр, начинается с 0x",
@@ -467,10 +582,24 @@ async def bank(message: types.Message):
 
 @dp.message_handler(lambda message: message.text == "👥 Участники")
 async def members(message: types.Message):
-    cursor.execute("SELECT COUNT(*) FROM participants")
-    result = cursor.fetchone()
-    count = result['count'] if result else 0
-    await message.answer(f"👥 Всего участников: {count}")
+    cursor.execute("SELECT ticket_number, username FROM participants ORDER BY ticket_number")
+    rows = cursor.fetchall()
+    
+    if not rows:
+        await message.answer("👥 Пока нет участников. Ты можешь стать первым!")
+        return
+    
+    count = len(rows)
+    text = f"👥 **Всего участников: {count}**\n\n"
+    text += "**Текущие билеты:**\n"
+    
+    for row in rows[:20]:
+        text += f"#{row['ticket_number']} — {row['username']}\n"
+    
+    if count > 20:
+        text += f"\n... и ещё {count - 20}"
+    
+    await message.answer(text, parse_mode="Markdown")
 
 @dp.message_handler(lambda message: message.text == "📊 Статистика")
 async def stats_button(message: types.Message):
@@ -494,10 +623,16 @@ async def add_participant(message: types.Message):
         await message.answer("Используй: /add @username")
         return
     
+    cursor.execute("SELECT COALESCE(MAX(ticket_number), 0) + 1 FROM participants")
+    next_number = cursor.fetchone()['coalesce']
+    
     try:
-        cursor.execute("INSERT INTO participants (username) VALUES (%s)", (username,))
+        cursor.execute(
+            "INSERT INTO participants (ticket_number, username) VALUES (%s, %s)", 
+            (next_number, username)
+        )
         conn.commit()
-        await message.answer(f"✅ Участник {username} добавлен!")
+        await message.answer(f"✅ Участник {username} добавлен! Билет №{next_number}")
     except psycopg2.errors.UniqueViolation:
         conn.rollback()
         await message.answer("⚠️ Этот участник уже добавлен")
@@ -511,6 +646,7 @@ async def cmd_reset_db(message: types.Message):
     cursor.execute("DELETE FROM participants")
     cursor.execute("DELETE FROM transactions")
     cursor.execute("DELETE FROM draw_history")
+    cursor.execute("DELETE FROM referral_sources")
     conn.commit()
     await message.answer("✅ База данных очищена! Все TXID теперь будут считаться новыми.")
 
@@ -568,22 +704,20 @@ async def cmd_announce(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         return
     
-    # Получаем текущие данные
     cursor.execute("SELECT COUNT(*) FROM participants")
     count = cursor.fetchone()['count'] or 0
     current_bank = count * ENTRY_FEE
     
-    # Получаем данные последнего победителя
     cursor.execute("""
-        SELECT winner_username, winner_prize FROM draw_history 
+        SELECT winner_username, winner_prize, winner_ticket FROM draw_history 
         ORDER BY draw_date DESC LIMIT 1
     """)
     last_winner = cursor.fetchone()
     
     last_winner_text = f"@{last_winner['winner_username']}" if last_winner else "пока нет"
+    last_ticket_text = f"№{last_winner['winner_ticket']}" if last_winner else ""
     last_prize_text = f"{last_winner['winner_prize']:.2f}" if last_winner else "0"
     
-    # Формируем пост (можно выбрать любой вариант)
     post = (
         f"🎲 **CRYPTO FORTUNA — НОВЫЙ РОЗЫГРЫШ!** 🎲\n\n"
         f"💰 **Банк уже собран:** {current_bank} USDT\n"
@@ -599,7 +733,7 @@ async def cmd_announce(message: types.Message):
         f"3️⃣ Отправь {ENTRY_FEE} USDT на указанный адрес\n"
         f"4️⃣ Отправь TXID боту — и ты в игре!\n\n"
         f"⏳ **Розыгрыш состоится:** через 24 часа\n"
-        f"🏆 **Предыдущий победитель:** {last_winner_text} выиграл {last_prize_text} USDT\n\n"
+        f"🏆 **Предыдущий победитель:** {last_winner_text} (билет {last_ticket_text}) — {last_prize_text} USDT\n\n"
         f"Не упусти свой шанс! Удача любит смелых 🔥"
     )
     
@@ -618,11 +752,11 @@ async def cmd_start_draw(message: types.Message):
         await message.answer("⚠️ **Розыгрыш уже запущен!** Подождите завершения.")
         return
     
-    cursor.execute("SELECT username FROM participants")
+    cursor.execute("SELECT ticket_number, username FROM participants ORDER BY ticket_number")
     rows = cursor.fetchall()
-    participants = [f"@{row['username']}" for row in rows]
+    participants_with_tickets = [f"{row['ticket_number']}. {row['username']}" for row in rows]
     
-    if len(participants) < 2:
+    if len(participants_with_tickets) < 2:
         await message.answer("❌ Для розыгрыша нужно минимум 2 участника")
         return
     
@@ -639,37 +773,36 @@ async def cmd_start_draw(message: types.Message):
         
         target_block = current_block + 20
         
-        await publish_round_info(CHANNEL_ID, round_number, participants, target_block)
+        await publish_round_info(CHANNEL_ID, round_number, participants_with_tickets, target_block)
         await message.answer(f"✅ Информация о розыгрыше #{round_number} опубликована в канале")
         await message.answer(f"⏳ Розыгрыш состоится через 2 минуты (блок #{target_block})")
         
         await asyncio.sleep(120)
         
-        winner = await execute_provable_draw_bsc(CHANNEL_ID, round_number, participants, target_block)
+        result = await execute_provable_draw_bsc(CHANNEL_ID, round_number, participants_with_tickets, target_block)
         
-        if winner:
-            # Получаем хэш блока для сохранения в историю
-            block_hash = get_bsc_block_hash(target_block)
+        if result:
+            winner_username, winner_ticket, winner_prize = result
             
-            # Сохраняем историю розыгрыша
             cursor.execute("""
                 INSERT INTO draw_history 
-                (round_number, participants_count, total_bank, winner_username, winner_prize, commission, target_block, block_hash) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                (round_number, participants_count, total_bank, winner_username, winner_ticket, winner_prize, commission, target_block, block_hash) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 round_number, 
-                len(participants), 
-                len(participants) * ENTRY_FEE,
-                winner,
-                (len(participants) * ENTRY_FEE) * 0.9,
-                (len(participants) * ENTRY_FEE) * 0.1,
+                len(participants_with_tickets), 
+                len(participants_with_tickets) * ENTRY_FEE,
+                winner_username,
+                winner_ticket,
+                winner_prize,
+                len(participants_with_tickets) * ENTRY_FEE * 0.1,
                 target_block,
-                block_hash
+                "saved_in_post"
             ))
             
             cursor.execute("DELETE FROM participants")
             conn.commit()
-            await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: {winner}")
+            await message.answer(f"✅ Розыгрыш #{round_number} завершён! Победитель: билет {winner_ticket} — {winner_username}")
         else:
             await message.answer(f"❌ Розыгрыш #{round_number} не удался. Участники сохранены.")
     
@@ -713,6 +846,9 @@ async def handle_txid(message: types.Message):
     success, msg = check_bsc_payment(txid)
     
     if success:
+        cursor.execute("SELECT COALESCE(MAX(ticket_number), 0) + 1 FROM participants")
+        next_number = cursor.fetchone()['coalesce']
+        
         cursor.execute(
             "INSERT INTO transactions (txid, user_id, username, amount) VALUES (%s, %s, %s, %s) ON CONFLICT (txid) DO NOTHING",
             (txid, user_id, username, 5)
@@ -720,11 +856,17 @@ async def handle_txid(message: types.Message):
         
         try:
             cursor.execute(
-                "INSERT INTO participants (username) VALUES (%s)", 
-                (f"@{username}",)
+                "INSERT INTO participants (ticket_number, username) VALUES (%s, %s)", 
+                (next_number, f"@{username}")
             )
             conn.commit()
-            await message.answer(f"✅ Транзакция подтверждена!\nТы добавлен в розыгрыш 🎟")
+            
+            await message.answer(
+                f"✅ **Транзакция подтверждена!**\n"
+                f"🎟 **Твой номер билета: {next_number}**\n"
+                f"Ты добавлен в розыгрыш. Удачи! 🍀",
+                parse_mode="Markdown"
+            )
         except psycopg2.errors.UniqueViolation:
             conn.commit()
             await message.answer("⚠️ Вы уже участвуете в этом розыгрыше")
