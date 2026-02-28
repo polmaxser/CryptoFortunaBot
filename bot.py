@@ -648,8 +648,9 @@ async def add_participant(message: types.Message):
         await message.answer("Используй: /add @username")
         return
     
-    cursor.execute("SELECT COALESCE(MAX(ticket_number), 0) + 1 FROM participants")
-    next_number = cursor.fetchone()['coalesce']
+    cursor.execute("SELECT COALESCE(MAX(ticket_number), 0) + 1 as next_num FROM participants")
+    result = cursor.fetchone()
+    next_number = result['next_num'] if result else 1
     
     try:
         cursor.execute(
@@ -871,8 +872,9 @@ async def handle_txid(message: types.Message):
     success, msg = check_bsc_payment(txid)
     
     if success:
-        cursor.execute("SELECT COALESCE(MAX(ticket_number), 0) + 1 FROM participants")
-        next_number = cursor.fetchone()['coalesce']
+        cursor.execute("SELECT COALESCE(MAX(ticket_number), 0) + 1 as next_num FROM participants")
+        result = cursor.fetchone()
+        next_number = result['next_num'] if result else 1
         
         cursor.execute(
             "INSERT INTO transactions (txid, user_id, username, amount) VALUES (%s, %s, %s, %s) ON CONFLICT (txid) DO NOTHING",
