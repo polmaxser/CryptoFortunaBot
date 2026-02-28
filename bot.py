@@ -19,7 +19,7 @@ API_TOKEN = os.getenv("BOT_TOKEN")
 WALLET_ADDRESS = "0xFd434c30aCeF2815fE895a2144b11122e31c0B93"
 ADMIN_ID = 8333494757
 ENTRY_FEE = 5
-CHANNEL_ID = "@real_crypto_fortuna"
+CHANNEL_ID = "@realcryptofortuna"
 
 # Логирование
 logging.basicConfig(level=logging.INFO)
