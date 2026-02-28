@@ -769,6 +769,8 @@ async def cmd_announce(message: types.Message):
 @dp.message_handler(commands=['start_draw'])
 async def cmd_start_draw(message: types.Message):
     global draw_in_progress
+
+    await asyncio.sleep(0.5)
     
     if message.from_user.id != ADMIN_ID:
         await message.answer("❌ Эта команда только для админа")
