@@ -940,3 +940,21 @@ async def on_shutdown():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+# === ПИНГ БАЗЫ ДАННЫХ (чтобы Supabase не засыпала) ===
+async def keep_db_alive():
+    """Каждый час пингует базу, чтобы она не засыпала"""
+    while True:
+        await asyncio.sleep(3600)  # ждём 1 час
+        try:
+            # Простой запрос к базе
+            cursor.execute("SELECT 1")
+            logging.info("✅ Пинг базы данных выполнен")
+        except Exception as e:
+            logging.error(f"❌ Ошибка пинга БД: {e}")
+
+# Запускаем фоновую задачу при старте бота
+@app.on_event("startup")
+async def start_background_tasks():
+    asyncio.create_task(keep_db_alive())
+    logging.info("✅ Задача пинга базы данных запущена")
