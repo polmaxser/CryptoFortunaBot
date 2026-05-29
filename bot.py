@@ -12,6 +12,53 @@ import uvicorn
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+import asyncio
+from psycopg2 import pool, OperationalError
+
+# === ПУЛ СОЕДИНЕНИЙ С БАЗОЙ ДАННЫХ ===
+db_pool = None
+
+def init_db_pool():
+    global db_pool
+    if db_pool is None:
+        db_pool = pool.SimpleConnectionPool(1, 5, DATABASE_URL)
+    return db_pool
+
+def get_db_connection():
+    global db_pool
+    if db_pool is None:
+        init_db_pool()
+    
+    for attempt in range(3):
+        try:
+            conn = db_pool.getconn()
+            conn.autocommit = True
+            return conn
+        except OperationalError as e:
+            logging.error(f"Ошибка подключения (попытка {attempt+1}/3): {e}")
+            if attempt < 2:
+                time.sleep(2)
+                db_pool = None
+                init_db_pool()
+    raise Exception("Не удалось подключиться к БД")
+
+def close_db_connection(conn):
+    if db_pool and conn:
+        db_pool.putconn(conn)
+
+async def keep_db_alive():
+    while True:
+        await asyncio.sleep(1800)
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.close()
+            close_db_connection(conn)
+            logging.info("✅ Пинг БД выполнен")
+        except Exception as e:
+            logging.error(f"❌ Ошибка пинга: {e}")
+
 draw_in_progress = False
 
 # === НАСТРОЙКИ ===
@@ -30,9 +77,9 @@ dp = Dispatcher(bot)
 
 # === ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ (SUPABASE) ===
 DATABASE_URL = os.getenv("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-conn.autocommit = True
-cursor = conn.cursor()
+init_db_pool()
+conn = get_db_connection()
+cursor = conn.cursor(cursor_factory=RealDictCursor)
 
 # Таблица участников (с номерами билетов)
 cursor.execute("""
@@ -936,6 +983,11 @@ async def on_startup():
 @app.on_event("shutdown")
 async def on_shutdown():
     await bot.delete_webhook()
+
+@app.on_event("startup")
+async def start_db_ping():
+    asyncio.create_task(keep_db_alive())
+    logging.info("✅ Пинг базы запущен")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
