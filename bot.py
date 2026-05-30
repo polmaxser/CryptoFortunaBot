@@ -1197,6 +1197,27 @@ async def cmd_sources(message: Message) -> None:
         text += f"📌 *{row['source']}* — {row['users']} users, {row['referrals']} referrals\n"
     await message.answer(text)
 
+@dp.message(Command("start_draw"))
+async def cmd_start_draw(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
+    
+    if draw_lock.locked():
+        await message.answer("⚠️ Draw already running. Please wait.")
+        return
+
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT ticket_number, username FROM participants ORDER BY ticket_number"
+        )
+    
+    if len(rows) < 2:
+        await message.answer("❌ Need at least 2 participants to start a draw.")
+        return
+    
+    asyncio.create_task(run_full_draw())
+    await message.answer(f"✅ Draw started with {len(rows)} participants! Results will be posted in @realcryptofortuna")
 
 # ══════════════════════════════════════════════════════════════
 #  FASTAPI + WEBHOOK
