@@ -1168,7 +1168,7 @@ async def cmd_start_draw(message: Message) -> None:
         return
 
     asyncio.create_task(run_full_draw())
-    await message.answer("✅ Draw task started in background\\.")
+    await message.answer("✅ Draw task started in background.")
 
 
 @dp.message(Command("gen_link"))
