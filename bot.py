@@ -1159,28 +1159,6 @@ async def cmd_announce(message: Message) -> None:
     await message.answer(t("admin_published", "en"))
 
 
-@dp.message(Command("start_draw"))
-async def cmd_start_draw(message: Message) -> None:
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ Admin only.")
-        return
-    
-    if draw_lock.locked():
-        await message.answer(t("draw_running", "en"))
-        return
-
-    async with db_pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT ticket_number, username FROM participants ORDER BY ticket_number"
-        )
-    if len(rows) < 2:
-        await message.answer(t("draw_min", "en"))
-        return
-
-    asyncio.create_task(run_full_draw())
-    await message.answer("✅ Draw task started in background.")
-
-
 @dp.message(Command("gen_link"))
 async def cmd_gen_link(message: Message) -> None:
     if message.from_user.id != ADMIN_ID:
