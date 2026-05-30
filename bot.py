@@ -36,7 +36,7 @@ WALLET_ADDRESS    = os.getenv("WALLET_ADDRESS", "0xFd434c30aCeF2815fE895a2144b11
 ADMIN_ID          = int(os.getenv("ADMIN_ID", "8333494757"))
 CHANNEL_ID        = os.getenv("CHANNEL_ID", "@realcryptofortuna")
 ENTRY_FEE         = int(os.getenv("ENTRY_FEE", "5"))
-PARTICIPANT_LIMIT = int(os.getenv("PARTICIPANT_LIMIT", "20"))
+PARTICIPANT_LIMIT = int(os.getenv("PARTICIPANT_LIMIT", "100"))
 RENDER_URL        = os.getenv("RENDER_EXTERNAL_URL", "")
 USDT_CONTRACT     = "0x55d398326f99059ff775485246999027b3197955"
 
@@ -1063,8 +1063,10 @@ def admin_only(func):
 
 
 @dp.message(Command("add"))
-@admin_only
 async def cmd_add(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
         await message.answer(t("admin_no_args", "en"))
@@ -1086,8 +1088,10 @@ async def cmd_add(message: Message) -> None:
 
 
 @dp.message(Command("reset_db"))
-@admin_only
 async def cmd_reset_db(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
     async with db_pool.acquire() as conn:
         await conn.execute("DELETE FROM participants")
         await conn.execute("DELETE FROM transactions")
@@ -1097,8 +1101,10 @@ async def cmd_reset_db(message: Message) -> None:
 
 
 @dp.message(Command("find_txid"))
-@admin_only
 async def cmd_find_txid(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
     args = message.text.split(maxsplit=1)
     needle = args[1].strip().lower() if len(args) > 1 else ""
 
@@ -1123,12 +1129,14 @@ async def cmd_find_txid(message: Message) -> None:
         )
         await message.answer(f"📋 *Last 10 TXIDs:*\n{lines}")
     else:
-        await message.answer("📭 Transaction table is empty\\.")
+        await message.answer("📭 Transaction table is empty.")
 
 
 @dp.message(Command("announce"))
-@admin_only
 async def cmd_announce(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
     async with db_pool.acquire() as conn:
         count = await conn.fetchval("SELECT COUNT(*) FROM participants")
         last = await conn.fetchrow(
@@ -1140,7 +1148,6 @@ async def cmd_announce(message: Message) -> None:
     last_ticket = f"#{last['winner_ticket']}" if last else "—"
     last_prize = f"{last['winner_prize']:.2f}" if last else "0"
 
-    # Post bilingual announce
     for lang in ("en", "ru"):
         post = t(
             "announce_post", lang,
@@ -1153,8 +1160,11 @@ async def cmd_announce(message: Message) -> None:
 
 
 @dp.message(Command("start_draw"))
-@admin_only
 async def cmd_start_draw(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
+    
     if draw_lock.locked():
         await message.answer(t("draw_running", "en"))
         return
@@ -1172,8 +1182,10 @@ async def cmd_start_draw(message: Message) -> None:
 
 
 @dp.message(Command("gen_link"))
-@admin_only
 async def cmd_gen_link(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
     parts = message.text.split()
     if len(parts) < 3:
         await message.answer(t("gen_link_usage", "en"))
@@ -1188,8 +1200,10 @@ async def cmd_gen_link(message: Message) -> None:
 
 
 @dp.message(Command("sources"))
-@admin_only
 async def cmd_sources(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Admin only.")
+        return
     async with db_pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT source, COUNT(*) AS users,
