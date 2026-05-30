@@ -1069,23 +1069,24 @@ async def cmd_add(message: Message) -> None:
         return
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
-        await message.answer(t("admin_no_args", "en"))
+        await message.answer("Usage: /add @username")
         return
     username = args[1].strip()
+    
     async with db_pool.acquire() as conn:
+        # Получаем следующий номер билета
         ticket = (await conn.fetchval(
             "SELECT COALESCE(MAX(ticket_number), 0) FROM participants"
         )) + 1
-        try:
-            await conn.execute(
-                "INSERT INTO participants (ticket_number, telegram_id, username) VALUES ($1,0,$2)",
-                ticket, username,
-            )
-        except asyncpg.UniqueViolationError:
-            await message.answer(t("admin_already", "en"))
-            return
-    await message.answer(t("admin_added", "en", username=username, ticket=ticket))
-
+        
+        # Добавляем без проверки telegram_id
+        # Для админских добавлений ставим telegram_id = 0 (все админские будут с 0)
+        await conn.execute(
+            "INSERT INTO participants (ticket_number, telegram_id, username) VALUES ($1, 0, $2)",
+            ticket, username,
+        )
+    
+    await message.answer(f"✅ {username} added! Ticket #{ticket}")
 
 @dp.message(Command("reset_db"))
 async def cmd_reset_db(message: Message) -> None:
