@@ -1061,7 +1061,6 @@ def admin_only(func):
         await func(message, *args, **kwargs)
     return wrapper
 
-
 @dp.message(Command("add"))
 async def cmd_add(message: Message) -> None:
     if message.from_user.id != ADMIN_ID:
@@ -1074,13 +1073,18 @@ async def cmd_add(message: Message) -> None:
     username = args[1].strip()
     
     async with db_pool.acquire() as conn:
-        # Получаем следующий номер билета
+        # Проверяем, не существует ли уже такой username
+        existing = await conn.fetchval(
+            "SELECT 1 FROM participants WHERE username = $1", username
+        )
+        if existing:
+            await message.answer(f"⚠️ {username} already participating!")
+            return
+        
         ticket = (await conn.fetchval(
             "SELECT COALESCE(MAX(ticket_number), 0) FROM participants"
         )) + 1
         
-        # Добавляем без проверки telegram_id
-        # Для админских добавлений ставим telegram_id = 0 (все админские будут с 0)
         await conn.execute(
             "INSERT INTO participants (ticket_number, telegram_id, username) VALUES ($1, 0, $2)",
             ticket, username,
