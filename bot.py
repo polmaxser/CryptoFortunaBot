@@ -746,7 +746,7 @@ async def publish_draw_announce(
         msg = t("draw_announce", lang,
                 round=round_number, count=len(participants),
                 tickets=tickets_text, block=target_block)
-        await bot.send_message(CHANNEL_ID, msg, disable_web_page_preview=True)
+        await bot.send_message(CHANNEL_ID, msg, disable_web_page_preview=True, parse_mode=None)
 
 
 async def execute_draw(
@@ -799,6 +799,7 @@ async def execute_draw(
               count=count, bank=bank, commission=commission, prize=prize,
               ticket=winner_ticket, winner=winner_uname),
             disable_web_page_preview=True,
+            parse_mode=None,
         )
 
     try:
@@ -1190,6 +1191,7 @@ async def cmd_announce(message: Message) -> None:
               bank=bank, count=count, limit=PARTICIPANT_LIMIT, fee=ENTRY_FEE,
               last_winner=last_winner, last_ticket=last_ticket, last_prize=last_prize),
             disable_web_page_preview=True,
+            parse_mode=None,
         )
     await message.answer(t("admin_published", "en"))
 
