@@ -1065,7 +1065,7 @@ async def handle_weekly(message: Message) -> None:
 # ══════════════════════════════════════════════════════════════
 #  TXID HANDLER  — fires background task, returns immediately
 # ══════════════════════════════════════════════════════════════
-@dp.message(F.text, ~F.text.startswith("/"), ~F.text.in_(ALL_BUTTON_TEXTS))
+@dp.message(lambda message: message.text and not message.text.startswith("/") and message.text not in ALL_BUTTON_TEXTS)
 async def handle_txid(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
