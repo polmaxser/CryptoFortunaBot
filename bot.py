@@ -960,7 +960,8 @@ async def handle_bank(message: Message) -> None:
         t("bank_info", lang,
           count=count, limit=PARTICIPANT_LIMIT,
           bank=bank, prize=bank * 0.90,
-          slots=max(PARTICIPANT_LIMIT - count, 0))
+          slots=max(PARTICIPANT_LIMIT - count, 0)),
+        parse_mode=None
     )
 
 
@@ -982,7 +983,7 @@ async def handle_members(message: Message) -> None:
         text += f"\\#{row['ticket_number']} — {esc(row['username'])}\n"
     if count > 25:
         text += t("members_more", lang, n=count - 25)
-    await message.answer(text)
+        await message.answer(text, parse_mode=None)
 
 
 # ── 📊 Statistics ─────────────────────────────────────────────
@@ -1004,7 +1005,7 @@ async def handle_stats(message: Message) -> None:
     if not row or row["draws"] == 0:
         await message.answer(t("stats_empty", lang))
         return
-    await message.answer(t("stats", lang, **dict(row)))
+        await message.answer(t("stats", lang, **dict(row)), parse_mode=None)
 
 
 # ── 📜 History ────────────────────────────────────────────────
@@ -1033,7 +1034,7 @@ async def handle_history(message: Message) -> None:
                   prize=row["winner_prize"])
     if len(text) > 4000:
         text = text[:4000] + "\n\\.\\.\\."
-    await message.answer(text)
+        await message.answer(text, parse_mode=None)
 
 
 # ── 📆 Weekly ─────────────────────────────────────────────────
@@ -1062,7 +1063,7 @@ async def handle_weekly(message: Message) -> None:
     elif top:
         text += t("weekly_top", lang,
                   winner=esc(top["winner_username"]), wins=top["wins"])
-    await message.answer(text)
+        await message.answer(text, parse_mode=None)
 
 
 # ══════════════════════════════════════════════════════════════
