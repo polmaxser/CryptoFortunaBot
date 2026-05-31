@@ -985,7 +985,9 @@ async def handle_members(message: Message) -> None:
 
 
 # ── 📊 Statistics ─────────────────────────────────────────────
-@dp.message(F.text.in_({T["btn_stats"]["en"], T["btn_stats"]["ru"]}) | Command("stats"))
+@dp.message(F.text.in_({T["btn_stats"]["en"], T["btn_stats"]["ru"]}))
+@dp.message(Command("stats"))
+async def handle_stats(message: Message) -> None:
 async def handle_stats(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
@@ -1006,7 +1008,9 @@ async def handle_stats(message: Message) -> None:
 
 
 # ── 📜 History ────────────────────────────────────────────────
-@dp.message(F.text.in_({T["btn_history"]["en"], T["btn_history"]["ru"]}) | Command("history"))
+@dp.message(F.text.in_({T["btn_history"]["en"], T["btn_history"]["ru"]}))
+@dp.message(Command("history"))
+async def handle_history(message: Message) -> None:
 async def handle_history(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
@@ -1035,7 +1039,9 @@ async def handle_history(message: Message) -> None:
 
 
 # ── 📆 Weekly ─────────────────────────────────────────────────
-@dp.message(F.text.in_({T["btn_week"]["en"], T["btn_week"]["ru"]}) | Command("weekly"))
+@dp.message(F.text.in_({T["btn_week"]["en"], T["btn_week"]["ru"]}))
+@dp.message(Command("weekly"))
+async def handle_weekly(message: Message) -> None:
 async def handle_weekly(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
