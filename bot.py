@@ -975,7 +975,7 @@ async def handle_members(message: Message) -> None:
             "SELECT ticket_number, username FROM participants ORDER BY ticket_number"
         )
     if not rows:
-        await message.answer(t("members_empty", lang))
+        await message.answer(t("members_empty", lang), parse_mode=None)
         return
     count = len(rows)
     text  = t("members_header", lang, count=count)
@@ -983,7 +983,7 @@ async def handle_members(message: Message) -> None:
         text += f"\\#{row['ticket_number']} — {esc(row['username'])}\n"
     if count > 25:
         text += t("members_more", lang, n=count - 25)
-        await message.answer(text, parse_mode=None)
+    await message.answer(text, parse_mode=None)
 
 
 # ── 📊 Statistics ─────────────────────────────────────────────
@@ -1003,9 +1003,9 @@ async def handle_stats(message: Message) -> None:
             FROM draw_history
         """)
     if not row or row["draws"] == 0:
-        await message.answer(t("stats_empty", lang))
+        await message.answer(t("stats_empty", lang), parse_mode=None)
         return
-        await message.answer(t("stats", lang, **dict(row)), parse_mode=None)
+    await message.answer(t("stats", lang, **dict(row)), parse_mode=None)
 
 
 # ── 📜 History ────────────────────────────────────────────────
@@ -1021,7 +1021,7 @@ async def handle_history(message: Message) -> None:
             FROM draw_history ORDER BY draw_date DESC LIMIT 10
         """)
     if not rows:
-        await message.answer(t("history_empty", lang))
+        await message.answer(t("history_empty", lang), parse_mode=None)
         return
     text = t("history_header", lang)
     for row in rows:
@@ -1034,7 +1034,7 @@ async def handle_history(message: Message) -> None:
                   prize=row["winner_prize"])
     if len(text) > 4000:
         text = text[:4000] + "\n\\.\\.\\."
-        await message.answer(text, parse_mode=None)
+    await message.answer(text, parse_mode=None)
 
 
 # ── 📆 Weekly ─────────────────────────────────────────────────
@@ -1063,7 +1063,7 @@ async def handle_weekly(message: Message) -> None:
     elif top:
         text += t("weekly_top", lang,
                   winner=esc(top["winner_username"]), wins=top["wins"])
-        await message.answer(text, parse_mode=None)
+    await message.answer(text, parse_mode=None)
 
 
 # ══════════════════════════════════════════════════════════════
