@@ -988,7 +988,6 @@ async def handle_members(message: Message) -> None:
 @dp.message(F.text.in_({T["btn_stats"]["en"], T["btn_stats"]["ru"]}))
 @dp.message(Command("stats"))
 async def handle_stats(message: Message) -> None:
-async def handle_stats(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
     async with db_pool.acquire() as conn:
@@ -1011,7 +1010,6 @@ async def handle_stats(message: Message) -> None:
 @dp.message(F.text.in_({T["btn_history"]["en"], T["btn_history"]["ru"]}))
 @dp.message(Command("history"))
 async def handle_history(message: Message) -> None:
-async def handle_history(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
     async with db_pool.acquire() as conn:
@@ -1032,7 +1030,6 @@ async def handle_history(message: Message) -> None:
                   ticket=row["winner_ticket"],
                   winner=esc(row["winner_username"]),
                   prize=row["winner_prize"])
-    # Split if too long (Telegram 4096-char limit)
     if len(text) > 4000:
         text = text[:4000] + "\n\\.\\.\\."
     await message.answer(text)
@@ -1041,7 +1038,6 @@ async def handle_history(message: Message) -> None:
 # ── 📆 Weekly ─────────────────────────────────────────────────
 @dp.message(F.text.in_({T["btn_week"]["en"], T["btn_week"]["ru"]}))
 @dp.message(Command("weekly"))
-async def handle_weekly(message: Message) -> None:
 async def handle_weekly(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
