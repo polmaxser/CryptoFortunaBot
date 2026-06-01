@@ -941,10 +941,19 @@ async def handle_participate(message: Message) -> None:
     lang = await get_lang(uid)
     async with db_pool.acquire() as conn:
         count = await conn.fetchval("SELECT COUNT(*) FROM participants")
+    
+    # Первое сообщение — инструкция (без адреса)
     await message.answer(
         t("participate_info", lang,
           fee=ENTRY_FEE, wallet=WALLET_ADDRESS,
           count=count, limit=PARTICIPANT_LIMIT)
+    )
+    
+    # Второе сообщение — ТОЛЬКО адрес кошелька (легко копировать)
+    await message.answer(
+        f"`{WALLET_ADDRESS}`\n\n"
+        f"👆 Нажми на адрес, чтобы скопировать",
+        parse_mode="MarkdownV2"
     )
 
 
