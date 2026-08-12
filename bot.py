@@ -167,7 +167,8 @@ T: dict[str, dict[str, str]] = {
             "here and the bot will verify it manually\\.\n\n"
             "⚠️ *Important:* USDT BEP\\-20 on BSC only, and the amount must match exactly\\. "
             "Other networks will not be detected\\.\n\n"
-            "👥 Current participants: *{count}/{limit}*"
+            "👥 Current participants: *{count}/{limit}*\n\n"
+            "👇 Tap either value below to copy it\\."
         ),
         "ru": (
             "🎟 *Как участвовать в текущем раунде:*\n\n"
@@ -178,7 +179,8 @@ T: dict[str, dict[str, str]] = {
             "и бот проверит вручную\\.\n\n"
             "⚠️ *Важно:* Только USDT BEP\\-20 в сети BSC, и сумма должна совпадать точно\\. "
             "Другие сети не будут обнаружены\\.\n\n"
-            "👥 Текущих участников: *{count}/{limit}*"
+            "👥 Текущих участников: *{count}/{limit}*\n\n"
+            "👇 Нажми на любое значение ниже, чтобы скопировать его\\."
         ),
     },
 
@@ -635,6 +637,7 @@ ALTER TABLE referral_sources ADD COLUMN IF NOT EXISTS rewarded_at TIMESTAMPTZ;
 ALTER TABLE participants ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT FALSE;
 ALTER TABLE draw_history ADD COLUMN IF NOT EXISTS winner_telegram_id BIGINT;
 ALTER TABLE pending_payments ADD COLUMN IF NOT EXISTS reminded_at TIMESTAMPTZ;
+ALTER TABLE pending_payments ALTER COLUMN amount TYPE NUMERIC(20,8);
 """
 
 
@@ -938,11 +941,12 @@ async def bsc_verify_usdt_payment(
 
 
 async def _generate_unique_amount(conn) -> float:
-    """A slightly-off-round amount (e.g. 5.000437) unique to one pending payer,
-    so incoming transfers can be auto-matched without a memo/TXID paste."""
+    """A near-invisible offset (< 1 cent, e.g. 5.00437182) unique to one pending
+    payer, so incoming transfers can be auto-matched without a memo/TXID paste.
+    Kept in the 7th-8th decimal so the fee still reads as "5 USDT" at a glance."""
     for _ in range(20):
         offset = random.randint(1, 999999)
-        amount = round(ENTRY_FEE + offset / 1_000_000, 6)
+        amount = round(ENTRY_FEE + offset / 10**8, 8)
         taken = await conn.fetchval(
             "SELECT 1 FROM pending_payments WHERE amount = $1", amount
         )
@@ -981,7 +985,7 @@ async def payment_watcher() -> None:
                 txid = entry.get("transactionHash")
                 if not txid:
                     continue
-                amount = round(int(entry.get("data", "0x0"), 16) / 10**18, 6)
+                amount = round(int(entry.get("data", "0x0"), 16) / 10**18, 8)
 
                 async with db_pool.acquire() as conn:
                     if await conn.fetchval("SELECT 1 FROM transactions WHERE txid=$1", txid):
@@ -1081,7 +1085,7 @@ async def abandoned_payment_reminder() -> None:
                     await bot.send_message(
                         uid,
                         t("participate_reminder", lang,
-                          fee=esc(f"{float(row['amount']):.6f}"), wallet=WALLET_ADDRESS),
+                          fee=esc(f"{float(row['amount']):.8f}"), wallet=WALLET_ADDRESS),
                     )
                 except Exception as exc:
                     log.warning("Could not send reminder to %s: %s", uid, exc)
@@ -1428,23 +1432,16 @@ async def handle_participate(message: Message) -> None:
     # Первое сообщение — инструкция (без адреса)
     await message.answer(
         t("participate_info", lang,
-          fee=esc(f"{amount:.6f}"), wallet=WALLET_ADDRESS,
+          fee=esc(f"{amount:.8f}"), wallet=WALLET_ADDRESS,
           count=count, limit=PARTICIPANT_LIMIT)
     )
 
-    # Второе сообщение — ТОЛЬКО адрес кошелька (легко копировать)
-    await message.answer(
-        f"`{WALLET_ADDRESS}`\n\n"
-        f"👆 Нажми на адрес, чтобы скопировать",
-        parse_mode="MarkdownV2"
-    )
+    # Второе сообщение — ТОЛЬКО адрес кошелька, без лишнего текста
+    # (чтобы копирование сообщения целиком копировало именно адрес)
+    await message.answer(f"`{WALLET_ADDRESS}`", parse_mode="MarkdownV2")
 
-    # Третье сообщение — ТОЛЬКО точная сумма (легко копировать)
-    await message.answer(
-        f"`{amount:.6f}` USDT\n\n"
-        f"👆 Именно эта сумма — для автоматического распознавания платежа",
-        parse_mode="MarkdownV2"
-    )
+    # Третье сообщение — ТОЛЬКО точная сумма, без лишнего текста
+    await message.answer(f"`{amount:.8f}`", parse_mode="MarkdownV2")
 
 
 # ── 💰 Pool ───────────────────────────────────────────────────
