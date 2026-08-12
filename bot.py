@@ -500,13 +500,13 @@ T: dict[str, dict[str, str]] = {
         "en": (
             "🏆 *You won Draw \\#{round}\\!*\n\n"
             "🎟 Ticket \\#{ticket}\n"
-            "🎁 Prize: *{prize:.2f} USDT*\n\n"
+            "🎁 Prize: *{prize} USDT*\n\n"
             "Congratulations\\! Share the news \\— it's fully verifiable on BSC\\."
         ),
         "ru": (
             "🏆 *Ты выиграл в розыгрыше \\#{round}\\!*\n\n"
             "🎟 Билет \\#{ticket}\n"
-            "🎁 Приз: *{prize:.2f} USDT*\n\n"
+            "🎁 Приз: *{prize} USDT*\n\n"
             "Поздравляем\\! Поделись новостью \\— всё проверяемо в BSC\\."
         ),
     },
@@ -534,8 +534,8 @@ T: dict[str, dict[str, str]] = {
             "👤 *Your profile*\n\n"
             "🎟 Rounds joined: *{joined}*\n"
             "🏆 Rounds won: *{wins}*\n"
-            "💰 Total winnings: *{winnings:.2f} USDT*\n"
-            "💸 Total contributed: *{spent:.2f} USDT*\n\n"
+            "💰 Total winnings: *{winnings} USDT*\n"
+            "💸 Total contributed: *{spent} USDT*\n\n"
             "🔗 Friends invited: *{referrals}*\n"
             "🎁 Free tickets available: *{free}*"
         ),
@@ -543,8 +543,8 @@ T: dict[str, dict[str, str]] = {
             "👤 *Твой профиль*\n\n"
             "🎟 Раундов сыграно: *{joined}*\n"
             "🏆 Раундов выиграно: *{wins}*\n"
-            "💰 Всего выиграно: *{winnings:.2f} USDT*\n"
-            "💸 Всего внесено: *{spent:.2f} USDT*\n\n"
+            "💰 Всего выиграно: *{winnings} USDT*\n"
+            "💸 Всего внесено: *{spent} USDT*\n\n"
             "🔗 Приглашено друзей: *{referrals}*\n"
             "🎁 Доступно бесплатных билетов: *{free}*"
         ),
@@ -917,7 +917,7 @@ async def bsc_verify_usdt_payment(
                 amount = int(log_entry.get("data", "0x0"), 16) / 10**18
                 if amount >= expected_amount:
                     return True, f"{amount:.4f} USDT"
-                return False, f"Amount too low: {amount:.4f} USDT \\(need {expected_amount}\\)"
+                return False, esc(f"Amount too low: {amount:.4f} USDT (need {expected_amount})")
 
             if attempt < 3:
                 continue
@@ -1081,7 +1081,7 @@ async def abandoned_payment_reminder() -> None:
                     await bot.send_message(
                         uid,
                         t("participate_reminder", lang,
-                          fee=f"{float(row['amount']):.6f}", wallet=WALLET_ADDRESS),
+                          fee=esc(f"{float(row['amount']):.6f}"), wallet=WALLET_ADDRESS),
                     )
                 except Exception as exc:
                     log.warning("Could not send reminder to %s: %s", uid, exc)
@@ -1256,7 +1256,7 @@ async def notify_winner(winner_uid: int, round_number: int, ticket: int, prize: 
         ]])
         await bot.send_message(
             winner_uid,
-            t("share_win_dm", lang, round=round_number, ticket=ticket, prize=prize),
+            t("share_win_dm", lang, round=round_number, ticket=ticket, prize=esc(f"{prize:.2f}")),
             reply_markup=keyboard,
         )
     except Exception as exc:
@@ -1428,7 +1428,7 @@ async def handle_participate(message: Message) -> None:
     # Первое сообщение — инструкция (без адреса)
     await message.answer(
         t("participate_info", lang,
-          fee=f"{amount:.6f}", wallet=WALLET_ADDRESS,
+          fee=esc(f"{amount:.6f}"), wallet=WALLET_ADDRESS,
           count=count, limit=PARTICIPANT_LIMIT)
     )
 
@@ -1596,7 +1596,8 @@ async def handle_profile(message: Message) -> None:
         )
     await message.answer(
         t("profile_info", lang,
-          joined=joined, wins=wins, winnings=float(winnings), spent=float(spent),
+          joined=joined, wins=wins,
+          winnings=esc(f"{float(winnings):.2f}"), spent=esc(f"{float(spent):.2f}"),
           referrals=user_row["referral_count"] if user_row else 0,
           free=user_row["free_tickets"] if user_row else 0),
     )
