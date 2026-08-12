@@ -1421,7 +1421,10 @@ async def handle_participate(message: Message) -> None:
         amount = await conn.fetchval(
             "SELECT amount FROM pending_payments WHERE telegram_id=$1", uid
         )
-        if amount is None:
+        # Regenerate if missing, or left over from before the offset was
+        # shrunk to under 1 cent (old scheme could drift up to ~1 USDT).
+        stale = amount is not None and not (0 < float(amount) - ENTRY_FEE <= 0.01)
+        if amount is None or stale:
             amount = await _generate_unique_amount(conn)
             await conn.execute(
                 "INSERT INTO pending_payments (telegram_id, amount) VALUES ($1,$2) "
