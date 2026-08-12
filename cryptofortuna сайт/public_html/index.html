@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto Fortuna Club — Прозрачное блокчейн-сообщество | 5 USDT</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="shortcut icon" href="/favicon.ico">
+<meta name="description" content="Прозрачное блокчейн-сообщество. Взнос 5 USDT, 90% банка — победителю. Алгоритм на BSC, всё проверяемо.">
+<meta name="keywords" content="крипта, криптовалюта, блокчейн, BSC, USDT, победитель, крипто фортуна, криптосообщество, крипто группа, сообщество криптораспределения, частное сообщество криптолюбителей, клуб крипто, закрытый клуб криптовалюты, элитный клуб криптолюбителей, распределение криптовалюты, поощрение победителя">
+<meta name="author" content="Crypto Fortuna Club">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph (для соцсетей) -->
+<meta property="og:title" content="Crypto Fortuna Club">
+<meta property="og:description" content="5 USDT — твой шанс в прозрачном блокчейн-сообществе">
+<meta property="og:image" content="https://cryptofortuna.online/logo.png">
+<meta property="og:url" content="https://cryptofortuna.online">
+<meta property="og:type" content="website">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Crypto Fortuna Club">
+<meta name="twitter:description" content="5 USDT — прозрачное сообщество на BSC">
+<meta name="twitter:image" content="https://cryptofortuna.online/logo.png">
+<meta name="description" content="Join Crypto Fortuna Club — a private community with transparent blockchain-based fund distribution. 5 USDT entry, 90% reward pool, BSC verified.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+  :root {
+    --gold: #FFD060;
+    --gold-bright: #FFE87A;
+    --gold-dark: #B8860B;
+    --bg-dark: #080810;
+    --bg-mid: #0D0D1A;
+    --bg-card: rgba(255,200,60,0.04);
+    --text-main: #F5EAC8;
+    --text-muted: #9A8A6A;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    overflow-x: hidden;
+  }
+  #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    background-size: 200px; opacity: 0.4; pointer-events: none; z-index: 1;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 48px;
+    background: linear-gradient(to bottom, rgba(8,8,16,0.97), transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,208,96,0.08);
+    transition: background 0.3s;
+  }
+  .nav-left { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .nav-left img { height: 42px; width: 42px; object-fit: contain; }
+  .nav-logo-text { font-family: 'Cinzel', serif; font-size: 0.95rem; font-weight: 700; color: var(--gold); letter-spacing: 0.05em; line-height: 1.2; }
+  .nav-logo-text span { display: block; font-size: 0.6rem; font-weight: 400; color: var(--text-muted); letter-spacing: 0.2em; text-transform: uppercase; }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+
+  /* LANG SWITCHER */
+  .lang-switcher {
+    display: flex; align-items: center;
+    background: rgba(255,208,96,0.06);
+    border: 1px solid rgba(255,208,96,0.15);
+    border-radius: 100px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .lang-btn {
+    background: none; border: none; cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 5px 12px; border-radius: 100px;
+    transition: all 0.25s ease;
+  }
+  .lang-btn.active {
+    background: linear-gradient(135deg, #FFD060, #B8860B);
+    color: #000;
+    box-shadow: 0 0 12px rgba(255,208,96,0.3);
+  }
+  .lang-btn:hover:not(.active) { color: var(--gold); }
+
+  .nav-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, #FFD060 0%, #FF9A00 100%);
+    color: #000; font-family: 'Rajdhani', sans-serif;
+    font-weight: 700; font-size: 0.88rem; letter-spacing: 0.1em;
+    text-transform: uppercase; text-decoration: none;
+    padding: 9px 22px; border-radius: 4px;
+    transition: all 0.3s; box-shadow: 0 0 20px rgba(255,208,96,0.3);
+  }
+  .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 4px 30px rgba(255,208,96,0.5); }
+
+  /* HERO */
+  .hero {
+    position: relative; min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 130px 24px 80px;
+    z-index: 2; overflow: hidden;
+  }
+  .hero-bg-glow {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -60%);
+    width: 900px; height: 900px;
+    background: radial-gradient(ellipse at center, rgba(255,208,96,0.12) 0%, rgba(255,140,0,0.06) 35%, transparent 70%);
+    pointer-events: none;
+    animation: pulse-glow 4s ease-in-out infinite alternate;
+  }
+  @keyframes pulse-glow {
+    from { opacity: 0.7; transform: translate(-50%, -60%) scale(1); }
+    to   { opacity: 1;   transform: translate(-50%, -60%) scale(1.08); }
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,208,96,0.08);
+    border: 1px solid rgba(255,208,96,0.2);
+    border-radius: 100px; padding: 6px 18px;
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--gold);
+    margin-bottom: 28px;
+    animation: fadeDown 0.8s ease both;
+  }
+  .hero-badge::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold); box-shadow: 0 0 8px var(--gold);
+    animation: blink 1.5s ease infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .hero-logo {
+    width: 150px; height: 150px; object-fit: contain;
+    margin-bottom: 24px;
+    animation: fadeDown 0.9s ease 0.1s both;
+    filter: drop-shadow(0 0 40px rgba(255,208,96,0.4));
+    transition: filter 0.3s;
+  }
+  .hero-logo:hover { filter: drop-shadow(0 0 60px rgba(255,208,96,0.7)); }
+  .hero-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    font-weight: 900; line-height: 1;
+    animation: fadeDown 1s ease 0.2s both;
+    background: linear-gradient(180deg, #FFE87A 0%, #FFD060 40%, #B8860B 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 8px;
+  }
+  .hero-subtitle-brand {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.1rem, 3vw, 1.9rem); font-weight: 400;
+    letter-spacing: 0.4em; color: var(--text-muted);
+    animation: fadeDown 1s ease 0.3s both;
+    margin-bottom: 28px; text-transform: uppercase;
+  }
+  .hero-tagline {
+    font-size: clamp(1rem, 2vw, 1.2rem); font-weight: 400;
+    color: var(--text-main); opacity: 0.8;
+    max-width: 580px; line-height: 1.65;
+    margin-bottom: 44px;
+    animation: fadeDown 1s ease 0.4s both;
+  }
+
+  /* HERO BUTTONS */
+  .hero-actions {
+    display: flex; gap: 14px;
+    justify-content: center; flex-wrap: wrap;
+    animation: fadeDown 1s ease 0.5s both;
+    margin-bottom: 72px;
+  }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, #FFD060 0%, #FF9A00 100%);
+    color: #000; font-family: 'Rajdhani', sans-serif;
+    font-weight: 700; font-size: 1rem; letter-spacing: 0.08em;
+    text-transform: uppercase; text-decoration: none;
+    padding: 15px 32px; border-radius: 4px;
+    transition: all 0.3s; box-shadow: 0 0 40px rgba(255,164,0,0.4);
+    position: relative; overflow: hidden;
+  }
+  .btn-primary::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.15));
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 50px rgba(255,164,0,0.6); }
+  .btn-primary:hover::after { opacity: 1; }
+
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent; color: var(--gold);
+    font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase;
+    text-decoration: none; padding: 14px 28px; border-radius: 4px;
+    border: 1px solid rgba(255,208,96,0.3); transition: all 0.3s;
+  }
+  .btn-secondary:hover { background: rgba(255,208,96,0.08); border-color: var(--gold); transform: translateY(-3px); }
+
+  /* HERO STATS */
+  .hero-stats {
+    display: flex; border: 1px solid rgba(255,208,96,0.12);
+    border-radius: 8px; overflow: hidden;
+    background: rgba(255,208,96,0.03); backdrop-filter: blur(8px);
+    animation: fadeUp 1s ease 0.6s both;
+  }
+  .stat-item { padding: 18px 32px; text-align: center; position: relative; }
+  .stat-item + .stat-item::before {
+    content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+    width: 1px; background: rgba(255,208,96,0.15);
+  }
+  .stat-value { font-family: 'Cinzel', serif; font-size: 1.7rem; font-weight: 700; color: var(--gold); line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+
+  /* SECTIONS */
+  section { position: relative; z-index: 2; }
+  .section-inner { max-width: 1100px; margin: 0 auto; padding: 100px 24px; }
+  .section-label { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; opacity: 0.8; }
+  .section-title {
+    font-family: 'Cinzel', serif; font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700; line-height: 1.15; margin-bottom: 18px;
+    background: linear-gradient(160deg, #FFE87A 0%, #FFD060 60%, #B8860B 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .section-body { font-size: 1rem; line-height: 1.7; color: var(--text-muted); max-width: 560px; }
+
+  /* HOW IT WORKS */
+  .how { background: linear-gradient(180deg, transparent 0%, rgba(255,164,0,0.03) 50%, transparent 100%); }
+  .steps-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0; margin-top: 56px;
+    border: 1px solid rgba(255,208,96,0.1); border-radius: 12px; overflow: hidden;
+  }
+  .step-card {
+    background: rgba(255,208,96,0.03); padding: 36px 28px;
+    border-right: 1px solid rgba(255,208,96,0.08);
+    transition: background 0.3s;
+  }
+  .step-card:last-child { border-right: none; }
+  .step-card:hover { background: rgba(255,208,96,0.07); }
+  .step-num { font-family: 'Cinzel', serif; font-size: 3rem; font-weight: 900; color: rgba(255,208,96,0.08); line-height: 1; margin-bottom: 14px; transition: color 0.3s; }
+  .step-card:hover .step-num { color: rgba(255,208,96,0.15); }
+  .step-icon { font-size: 1.8rem; margin-bottom: 14px; display: block; }
+  .step-title { font-family: 'Cinzel', serif; font-size: 0.88rem; font-weight: 600; color: var(--gold); margin-bottom: 10px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .step-text { font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); }
+  .step-text strong { color: var(--text-main); }
+
+  /* ALGORITHM */
+  .algo-section { background: var(--bg-mid); }
+  .algo-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+  .algo-formula {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,208,96,0.15);
+    border-radius: 12px; padding: 36px; position: relative; overflow: hidden;
+  }
+  .algo-formula::before {
+    content: 'BSC ALGORITHM';
+    position: absolute; top: 14px; right: 18px;
+    font-size: 0.62rem; letter-spacing: 0.2em; color: var(--gold); opacity: 0.35;
+  }
+  .formula-line { font-size: 1rem; color: var(--text-muted); margin-bottom: 7px; font-weight: 500; }
+  .formula-line span.var { color: #4FC3F7; }
+  .formula-line span.op  { color: var(--gold); }
+  .formula-line span.val { color: #A5D6A7; }
+  .formula-line span.comment { color: rgba(255,208,96,0.3); font-size: 0.82rem; }
+  .formula-result {
+    margin-top: 22px; padding-top: 22px;
+    border-top: 1px solid rgba(255,208,96,0.12);
+    font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold);
+    text-align: center; letter-spacing: 0.05em;
+  }
+  .formula-result em { display: block; font-family: 'Rajdhani', sans-serif; font-size: 0.78rem; font-style: normal; color: var(--text-muted); margin-top: 4px; letter-spacing: 0.1em; }
+  .check-list { list-style: none; margin-top: 28px; }
+  .check-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid rgba(255,208,96,0.06); font-size: 0.95rem; color: var(--text-muted); line-height: 1.5; }
+  .check-list li:last-child { border-bottom: none; }
+  .check-list .icon { flex-shrink: 0; width: 20px; height: 20px; background: rgba(255,208,96,0.1); border: 1px solid rgba(255,208,96,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: var(--gold); margin-top: 2px; }
+
+  /* FUND */
+  .fund-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 52px; }
+  .fund-card {
+    border: 1px solid rgba(255,208,96,0.1); border-radius: 12px;
+    padding: 32px 26px; background: var(--bg-card);
+    transition: all 0.35s ease; position: relative; overflow: hidden;
+  }
+  .fund-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,208,96,0.04), transparent); opacity: 0; transition: opacity 0.3s; }
+  .fund-card:hover { border-color: rgba(255,208,96,0.25); transform: translateY(-6px); box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 40px rgba(255,208,96,0.08); }
+  .fund-card:hover::before { opacity: 1; }
+  .fund-card.featured { border-color: rgba(255,208,96,0.3); background: rgba(255,208,96,0.06); }
+  .fund-pct { font-family: 'Cinzel', serif; font-size: 3rem; font-weight: 900; color: var(--gold); line-height: 1; margin-bottom: 8px; filter: drop-shadow(0 0 20px rgba(255,208,96,0.3)); }
+  .fund-title { font-family: 'Cinzel', serif; font-size: 0.82rem; font-weight: 600; color: var(--text-main); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+  .fund-desc { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
+
+  /* WHY */
+  .why-section { background: linear-gradient(180deg, transparent, rgba(255,164,0,0.03), transparent); }
+  .why-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 52px; }
+  .why-card { display: flex; gap: 18px; align-items: flex-start; padding: 24px; border: 1px solid rgba(255,208,96,0.08); border-radius: 8px; background: rgba(255,208,96,0.02); transition: all 0.3s; }
+  .why-card:hover { border-color: rgba(255,208,96,0.2); background: rgba(255,208,96,0.05); }
+  .why-icon { font-size: 1.7rem; flex-shrink: 0; filter: drop-shadow(0 0 8px rgba(255,208,96,0.3)); }
+  .why-card h3 { font-family: 'Cinzel', serif; font-size: 0.82rem; font-weight: 600; color: var(--gold); letter-spacing: 0.05em; margin-bottom: 6px; text-transform: uppercase; }
+  .why-card p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
+
+  /* HISTORY */
+  .history-list { margin-top: 48px; border: 1px solid rgba(255,208,96,0.1); border-radius: 12px; overflow: hidden; }
+  .history-row {
+    display: grid; grid-template-columns: 90px 1fr auto; gap: 18px; align-items: center;
+    padding: 16px 22px; border-bottom: 1px solid rgba(255,208,96,0.08);
+    background: rgba(255,208,96,0.02); transition: background 0.25s;
+  }
+  .history-row:last-child { border-bottom: none; }
+  .history-row:hover { background: rgba(255,208,96,0.06); }
+  .history-round { font-family: 'Cinzel', serif; font-size: 0.95rem; color: var(--gold); }
+  .history-round span { display: block; font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+  .history-mid { font-size: 0.9rem; color: var(--text-muted); }
+  .history-mid b { color: var(--text-main); font-weight: 600; }
+  .history-prize { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold); text-align: right; white-space: nowrap; }
+  .history-empty { padding: 40px 24px; text-align: center; color: var(--text-muted); font-size: 0.92rem; }
+  @media (max-width: 640px) {
+    .history-row { grid-template-columns: 1fr; text-align: left; gap: 6px; }
+    .history-prize { text-align: left; }
+  }
+
+  /* FAQ */
+  .faq-list { margin-top: 48px; max-width: 760px; margin-left: auto; margin-right: auto; }
+  .faq-item {
+    border: 1px solid rgba(255,208,96,0.1); border-radius: 10px;
+    background: rgba(255,208,96,0.02); margin-bottom: 12px; overflow: hidden;
+  }
+  .faq-item summary {
+    list-style: none; cursor: pointer; padding: 18px 22px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    font-family: 'Cinzel', serif; font-size: 0.92rem; color: var(--text-main);
+  }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary::after { content: '+'; font-size: 1.3rem; color: var(--gold); flex-shrink: 0; transition: transform 0.25s; }
+  .faq-item[open] summary::after { transform: rotate(45deg); }
+  .faq-item[open] summary { border-bottom: 1px solid rgba(255,208,96,0.08); }
+  .faq-item p { padding: 4px 22px 20px; margin: 0; font-size: 0.9rem; line-height: 1.65; color: var(--text-muted); }
+
+  /* TELEGRAM LIVE FEED */
+  .tg-feed { margin-top: 28px; border: 1px solid rgba(255,208,96,0.15); border-radius: 14px; overflow: hidden; background: rgba(0,0,0,0.25); }
+  .tg-feed-head { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid rgba(255,208,96,0.1); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .tg-feed-head::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #4FC85A; box-shadow: 0 0 6px #4FC85A; }
+  .tg-feed iframe { display: block; width: 100%; height: 480px; border: none; }
+
+  /* TELEGRAM LINKS SECTION */
+  .tg-section { background: var(--bg-mid); border-top: 1px solid rgba(255,208,96,0.08); border-bottom: 1px solid rgba(255,208,96,0.08); }
+  .tg-inner { max-width: 900px; margin: 0 auto; padding: 80px 24px; }
+  .tg-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 48px; }
+  .tg-card {
+    border: 1px solid rgba(255,208,96,0.15); border-radius: 14px;
+    padding: 36px 32px; background: rgba(255,208,96,0.04);
+    text-decoration: none; display: flex; gap: 22px; align-items: flex-start;
+    transition: all 0.35s ease; position: relative; overflow: hidden;
+  }
+  .tg-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,208,96,0.05), transparent); opacity: 0; transition: opacity 0.3s; }
+  .tg-card:hover { border-color: rgba(255,208,96,0.35); transform: translateY(-5px); box-shadow: 0 16px 50px rgba(0,0,0,0.4), 0 0 40px rgba(255,208,96,0.1); }
+  .tg-card:hover::after { opacity: 1; }
+  .tg-card-icon {
+    width: 54px; height: 54px; border-radius: 14px; flex-shrink: 0;
+    background: linear-gradient(135deg, #229ED9, #1A7FBD);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 24px rgba(34,158,217,0.4);
+  }
+  .tg-card-icon svg { width: 28px; height: 28px; fill: #fff; }
+  .tg-card-body {}
+  .tg-card-type { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; opacity: 0.6; }
+  .tg-card-name { font-family: 'Cinzel', serif; font-size: 1.15rem; font-weight: 700; color: var(--gold); margin-bottom: 8px; }
+  .tg-card-desc { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
+  .tg-card-arrow { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); font-size: 1.3rem; color: rgba(255,208,96,0.3); transition: all 0.3s; }
+  .tg-card:hover .tg-card-arrow { color: var(--gold); transform: translateY(-50%) translateX(4px); }
+
+  /* CTA */
+  .cta-section { background: transparent; }
+  .cta-inner { max-width: 720px; margin: 0 auto; padding: 100px 24px; text-align: center; }
+  .cta-glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; height: 300px; background: radial-gradient(ellipse, rgba(255,208,96,0.08), transparent 70%); pointer-events: none; }
+  .cta-title { font-family: 'Cinzel', serif; font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 900; margin-bottom: 18px; background: linear-gradient(160deg, #FFE87A, #FFD060, #B8860B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .cta-body { font-size: 1.05rem; color: var(--text-muted); margin-bottom: 40px; line-height: 1.7; }
+  .cta-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .cta-btn {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: linear-gradient(135deg, #FFD060 0%, #FF9A00 100%);
+    color: #000; font-family: 'Rajdhani', sans-serif;
+    font-weight: 700; font-size: 1.1rem; letter-spacing: 0.1em;
+    text-transform: uppercase; text-decoration: none;
+    padding: 18px 40px; border-radius: 6px;
+    transition: all 0.3s; box-shadow: 0 0 50px rgba(255,164,0,0.3);
+    position: relative; overflow: hidden;
+  }
+  .cta-btn::before { content: ''; position: absolute; top: -50%; left: -60%; width: 40%; height: 200%; background: rgba(255,255,255,0.18); transform: skewX(-20deg); animation: shine 3.5s ease infinite; }
+  @keyframes shine { 0%,100%{left:-60%;opacity:0} 50%{left:120%;opacity:1} }
+  .cta-btn:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 8px 60px rgba(255,164,0,0.5); }
+  .cta-btn.outline {
+    background: transparent; color: var(--gold);
+    border: 1px solid rgba(255,208,96,0.3); box-shadow: none;
+  }
+  .cta-btn.outline::before { display: none; }
+  .cta-btn.outline:hover { background: rgba(255,208,96,0.08); border-color: var(--gold); box-shadow: 0 0 20px rgba(255,208,96,0.15); }
+  .cta-note { margin-top: 18px; font-size: 0.78rem; color: var(--text-muted); opacity: 0.5; letter-spacing: 0.05em; }
+
+  /* DISCLAIMER */
+  .disclaimer-inner { max-width: 900px; margin: 0 auto; padding: 48px 24px; border-top: 1px solid rgba(255,208,96,0.06); }
+  .disclaimer-title { font-family: 'Cinzel', serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; opacity: 0.5; }
+  .disclaimer-text { font-size: 0.8rem; color: var(--text-muted); opacity: 0.35; line-height: 1.7; }
+
+  /* FOOTER */
+  footer { background: rgba(0,0,0,0.4); border-top: 1px solid rgba(255,208,96,0.06); padding: 28px 24px; position: relative; z-index: 2; }
+  .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+  .footer-brand { font-family: 'Cinzel', serif; font-size: 0.82rem; color: var(--gold); opacity: 0.55; letter-spacing: 0.05em; }
+  .footer-links { display: flex; gap: 22px; }
+  .footer-links a { font-size: 0.8rem; color: var(--text-muted); opacity: 0.45; text-decoration: none; letter-spacing: 0.08em; transition: opacity 0.2s; }
+  .footer-links a:hover { opacity: 1; color: var(--gold); }
+
+  /* ANIMATIONS */
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(20px)}  to{opacity:1;transform:translateY(0)} }
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,208,96,0.2); border-radius: 2px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 960px) {
+    .steps-grid { grid-template-columns: repeat(2, 1fr); }
+    .step-card:nth-child(2) { border-right: none; }
+    .step-card:nth-child(1), .step-card:nth-child(2) { border-bottom: 1px solid rgba(255,208,96,0.08); }
+    .algo-inner { grid-template-columns: 1fr; gap: 48px; }
+    .why-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px) {
+    nav { padding: 12px 16px; }
+    .fund-cards { grid-template-columns: 1fr; }
+    .tg-cards { grid-template-columns: 1fr; }
+    .hero-stats { flex-wrap: wrap; }
+    .stat-item { flex: 1 1 45%; }
+    .stat-item + .stat-item::before { display: none; }
+    .why-grid { grid-template-columns: 1fr; }
+    .steps-grid { grid-template-columns: 1fr; }
+    .step-card { border-right: none; border-bottom: 1px solid rgba(255,208,96,0.08); }
+    .step-card:last-child { border-bottom: none; }
+    .footer-inner { flex-direction: column; align-items: center; }
+    .nav-cta .cta-text { display: none; }
+  }
+  @media (max-width: 480px) {
+    .hero-actions { flex-direction: column; align-items: center; width: 100%; }
+    .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+    .cta-btns { flex-direction: column; align-items: center; }
+    .cta-btn { width: 100%; justify-content: center; }
+  }
+</style>
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function(m,e,t,r,i,k,a){
+        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=109595723', 'ym');
+
+    ym(109595723, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/109595723" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<!-- NAV -->
+<nav id="main-nav">
+  <a href="#" class="nav-left">
+    <img src="logo.png" alt="Crypto Fortuna Club">
+    <div class="nav-logo-text">
+      Crypto Fortuna
+      <span>Club</span>
+    </div>
+  </a>
+  <div class="nav-right">
+    <div class="lang-switcher">
+      <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</button>
+    </div>
+    <a href="https://t.me/RealCryptoFortunaBot" target="_blank" rel="noopener" class="nav-cta">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
+      <span class="cta-text" data-en="Join the Club" data-ru="Вступить">Join the Club</span>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-glow"></div>
+  <div class="hero-badge" data-en="Private Community · BSC Blockchain" data-ru="Частное сообщество · BSC Блокчейн">Private Community · BSC Blockchain</div>
+  <img src="logo.png" alt="Crypto Fortuna Club" class="hero-logo">
+  <h1 class="hero-title">CRYPTO<br>FORTUNA</h1>
+  <p class="hero-subtitle-brand">— Club —</p>
+  <p class="hero-tagline" data-en="A private community where every distribution is transparent, verifiable on-chain, and governed by a fair open algorithm." data-ru="Частное сообщество, где каждое распределение прозрачно, проверяемо в блокчейне и управляется открытым честным алгоритмом.">
+    A private community where every distribution is transparent, verifiable on-chain, and governed by a fair open algorithm.
+  </p>
+  <div class="hero-actions">
+    <a href="https://t.me/RealCryptoFortunaBot" target="_blank" rel="noopener" class="btn-primary">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
+      <span data-en="Join via @RealCryptoFortunaBot" data-ru="Вступить через @RealCryptoFortunaBot">Join via @RealCryptoFortunaBot</span>
+    </a>
+    <a href="#how" class="btn-secondary">
+      <span data-en="How it works ↓" data-ru="Как это работает ↓">How it works ↓</span>
+    </a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-value">5 USDT</div>
+      <div class="stat-label" data-en="Entry Contribution" data-ru="Взнос в фонд">Entry Contribution</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">90%</div>
+      <div class="stat-label" data-en="Reward Pool" data-ru="Призовой фонд">Reward Pool</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">BSC</div>
+      <div class="stat-label" data-en="On-Chain Verified" data-ru="Верификация в сети">On-Chain Verified</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">100%</div>
+      <div class="stat-label" data-en="Transparent" data-ru="Прозрачность">Transparent</div>
+    </div>
+  </div>
+</section>
+
+<!-- LIVE STATS -->
+<section id="live">
+  <div class="section-inner" style="padding-top:56px;padding-bottom:56px;text-align:center;">
+    <span class="section-label" data-en="Live" data-ru="Онлайн">Live</span>
+    <h2 class="section-title" style="font-size:clamp(1.4rem,3vw,1.8rem);" data-en="Current Round" data-ru="Текущий раунд">Current Round</h2>
+    <div class="hero-stats" style="margin:32px auto 0;max-width:680px;">
+      <div class="stat-item">
+        <div class="stat-value"><span id="live-participants">—</span>/<span id="live-limit">—</span></div>
+        <div class="stat-label" data-en="Participants" data-ru="Участников">Participants</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="live-bank">— USDT</div>
+        <div class="stat-label" data-en="Round Pool" data-ru="Банк раунда">Round Pool</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="live-paid">— USDT</div>
+        <div class="stat-label" data-en="Paid Out All-Time" data-ru="Выплачено всего">Paid Out All-Time</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="live-draws">—</div>
+        <div class="stat-label" data-en="Draws Completed" data-ru="Розыгрышей проведено">Draws Completed</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-inner">
+    <div class="reveal">
+      <span class="section-label" data-en="Step by Step" data-ru="Шаг за шагом">Step by Step</span>
+      <h2 class="section-title" data-en="How It Works" data-ru="Как это работает">How It Works</h2>
+      <p class="section-body" data-en="Everything runs transparently on the Binance Smart Chain. No hidden mechanics — every step is open and verifiable by anyone." data-ru="Всё работает прозрачно в сети Binance Smart Chain. Никакой скрытой механики — каждый шаг открыт и проверяем любым участником.">
+        Everything runs transparently on the Binance Smart Chain. No hidden mechanics — every step is open and verifiable by anyone.
+      </p>
+    </div>
+    <div class="steps-grid reveal">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <span class="step-icon">🤝</span>
+        <div class="step-title" data-en="Join the Club" data-ru="Вступите в клуб">Join the Club</div>
+        <p class="step-text" data-en="Start the bot <strong>@RealCryptoFortunaBot</strong> on Telegram and make a voluntary membership contribution of <strong>5 USDT</strong> via BSC network." data-ru="Запустите бот <strong>@RealCryptoFortunaBot</strong> в Telegram и внесите добровольный членский взнос <strong>5 USDT</strong> через сеть BSC.">Start the bot <strong>@RealCryptoFortunaBot</strong> on Telegram and make a voluntary membership contribution of <strong>5 USDT</strong> via BSC network.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <span class="step-icon">💎</span>
+        <div class="step-title" data-en="Fund Forms" data-ru="Формирование фонда">Fund Forms</div>
+        <p class="step-text" data-en="Your contribution enters the community pool. <strong>90%</strong> is reserved for the reward, <strong>10%</strong> covers project upkeep and goes toward charity." data-ru="Ваш взнос поступает в общий фонд сообщества. <strong>90%</strong> предназначено для поощрения, <strong>10%</strong> — на поддержку проекта и благотворительность.">Your contribution enters the community pool. <strong>90%</strong> is reserved for the reward, <strong>10%</strong> covers project upkeep and goes toward charity.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <span class="step-icon">🔐</span>
+        <div class="step-title" data-en="Fair Selection" data-ru="Честный выбор">Fair Selection</div>
+        <p class="step-text" data-en="A winner is selected via an open BSC block hash algorithm — pre-announced and independently verifiable. <strong>Zero manipulation.</strong>" data-ru="Победитель определяется открытым алгоритмом на основе хэша блока BSC — объявляется заранее и независимо проверяется. <strong>Никаких манипуляций.</strong>">A winner is selected via an open BSC block hash algorithm — pre-announced and independently verifiable. <strong>Zero manipulation.</strong></p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">04</div>
+        <span class="step-icon">📢</span>
+        <div class="step-title" data-en="Public Result" data-ru="Публичный результат">Public Result</div>
+        <p class="step-text" data-en="The bot publishes the result with the <strong>exact block reference</strong> so any member can verify the outcome on-chain themselves." data-ru="Бот публикует результат с <strong>точным номером блока</strong>, чтобы любой участник мог самостоятельно проверить итог в блокчейне.">The bot publishes the result with the <strong>exact block reference</strong> so any member can verify the outcome on-chain themselves.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ALGORITHM -->
+<section class="algo-section" id="algo">
+  <div class="section-inner">
+    <div class="algo-inner">
+      <div class="reveal">
+        <span class="section-label" data-en="Transparency" data-ru="Прозрачность">Transparency</span>
+        <h2 class="section-title" data-en="The Open Algorithm" data-ru="Открытый алгоритм">The Open Algorithm</h2>
+        <p class="section-body" data-en="No server-side randomness. No black boxes. The selection formula uses public BSC blockchain data — announced in advance and open to everyone." data-ru="Никакой серверной случайности. Никаких чёрных ящиков. Формула выбора использует публичные данные блокчейна BSC — объявляется заранее и открыта для всех.">
+          No server-side randomness. No black boxes. The selection formula uses public BSC blockchain data — announced in advance and open to everyone.
+        </p>
+        <ul class="check-list">
+          <li><span class="icon">✓</span><span data-en="Algorithm published before each round begins" data-ru="Алгоритм публикуется до начала каждого раунда">Algorithm published before each round begins</span></li>
+          <li><span class="icon">✓</span><span data-en="Uses real BSC block hash — impossible to predict or manipulate" data-ru="Использует реальный хэш блока BSC — невозможно предсказать или подделать">Uses real BSC block hash — impossible to predict or manipulate</span></li>
+          <li><span class="icon">✓</span><span data-en="Every participant can independently verify the result" data-ru="Каждый участник может самостоятельно проверить результат">Every participant can independently verify the result</span></li>
+          <li><span class="icon">✓</span><span data-en="Bot posts block number publicly in the channel" data-ru="Бот публично публикует номер блока в канале">Bot posts block number publicly in the channel</span></li>
+        </ul>
+      </div>
+      <div class="algo-formula reveal">
+        <div class="formula-line"><span class="comment">// Selection formula</span></div><br>
+        <div class="formula-line"><span class="var">blockHash</span><span class="op"> = </span><span class="val">BSC_BLOCK.hash</span></div>
+        <div class="formula-line"><span class="var">count</span><span class="op"> = </span><span class="val">participants.length</span></div><br>
+        <div class="formula-line"><span class="var">index</span><span class="op"> = </span><span class="var">blockHash</span><span class="op"> % </span><span class="var">count</span></div><br>
+        <div class="formula-line"><span class="var">winner</span><span class="op"> = </span><span class="val">participants[index]</span></div>
+        <div class="formula-result">
+          <span data-en="Verifiable by Anyone, Anywhere" data-ru="Проверяемо любым, где угодно">Verifiable by Anyone, Anywhere</span>
+          <em>via bscscan.com · block explorer</em>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FUND -->
+<section id="fund">
+  <div class="section-inner">
+    <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
+      <span class="section-label" data-en="Club Fund" data-ru="Клубный фонд">Club Fund</span>
+      <h2 class="section-title" data-en="How Your Contribution Is Used" data-ru="Как используется ваш взнос">How Your Contribution Is Used</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Every voluntary contribution goes directly into the shared club fund, distributed with complete transparency." data-ru="Каждый добровольный взнос поступает напрямую в общий клубный фонд и распределяется с полной прозрачностью.">Every voluntary contribution goes directly into the shared club fund, distributed with complete transparency.</p>
+    </div>
+    <div class="fund-cards reveal">
+      <div class="fund-card featured">
+        <div class="fund-pct">90%</div>
+        <div class="fund-title" data-en="Member Reward" data-ru="Поощрение участника">Member Reward</div>
+        <p class="fund-desc" data-en="The lion's share goes to one lucky community member, selected by the open blockchain algorithm each round." data-ru="Основная часть фонда направляется одному участнику сообщества, выбранному открытым алгоритмом блокчейна.">The lion's share goes to one lucky community member, selected by the open blockchain algorithm each round.</p>
+      </div>
+      <div class="fund-card">
+        <div class="fund-pct">5%</div>
+        <div class="fund-title" data-en="Project Support" data-ru="Поддержка проекта">Project Support</div>
+        <p class="fund-desc" data-en="Covers bot development, infrastructure, security and ongoing platform improvements." data-ru="Покрывает разработку бота, инфраструктуру, безопасность и развитие платформы.">Covers bot development, infrastructure, security and ongoing platform improvements.</p>
+      </div>
+      <div class="fund-card">
+        <div class="fund-pct">5%</div>
+        <div class="fund-title" data-en="Charity" data-ru="Благотворительность">Charity</div>
+        <p class="fund-desc" data-en="A portion goes to charitable causes — the community grows together and gives back." data-ru="Часть средств направляется на благотворительность — сообщество растёт и делает добро вместе.">A portion goes to charitable causes — the community grows together and gives back.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY JOIN -->
+<section class="why-section" id="why">
+  <div class="section-inner">
+    <div class="reveal">
+      <span class="section-label" data-en="Community" data-ru="Сообщество">Community</span>
+      <h2 class="section-title" data-en="Why Crypto Fortuna Club?" data-ru="Почему Crypto Fortuna Club?">Why Crypto Fortuna Club?</h2>
+    </div>
+    <div class="why-grid reveal">
+      <div class="why-card">
+        <span class="why-icon">🔗</span>
+        <div>
+          <h3 data-en="Blockchain-Native" data-ru="Блокчейн-нативный">Blockchain-Native</h3>
+          <p data-en="Built on BSC. Every distribution traceable on a public ledger — no trust required, only math." data-ru="Построен на BSC. Каждое распределение отслеживается в публичном реестре — нужна только математика, а не доверие.">Built on BSC. Every distribution traceable on a public ledger — no trust required, only math.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="why-icon">🛡️</span>
+        <div>
+          <h3 data-en="Fully Voluntary" data-ru="Полностью добровольно">Fully Voluntary</h3>
+          <p data-en="All contributions are voluntary. No subscription traps, no recurring charges. You decide." data-ru="Все взносы добровольны. Никаких подписочных ловушек, никаких регулярных списаний. Вы решаете сами.">All contributions are voluntary. No subscription traps, no recurring charges. You decide.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="why-icon">👁️</span>
+        <div>
+          <h3 data-en="100% Transparent" data-ru="100% Прозрачность">100% Transparent</h3>
+          <p data-en="The algorithm, block, and result are all public. Verify everything independently on BSCScan." data-ru="Алгоритм, блок и результат — всё публично. Проверяйте всё самостоятельно на BSCScan.">The algorithm, block, and result are all public. Verify everything independently on BSCScan.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="why-icon">🤲</span>
+        <div>
+          <h3 data-en="Charity Included" data-ru="С благотворительностью">Charity Included</h3>
+          <p data-en="Part of every round goes to charitable giving. The community grows and gives back." data-ru="Часть каждого раунда идёт на благотворительность. Сообщество растёт и помогает другим.">Part of every round goes to charitable giving. The community grows and gives back.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="why-icon">⚡</span>
+        <div>
+          <h3 data-en="Instant & Automated" data-ru="Мгновенно и автоматически">Instant & Automated</h3>
+          <p data-en="The Telegram bot handles everything automatically — join, track, and receive results instantly." data-ru="Telegram-бот делает всё автоматически — вступление, отслеживание и мгновенные результаты.">The Telegram bot handles everything automatically — join, track, and receive results instantly.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="why-icon">🌐</span>
+        <div>
+          <h3 data-en="Private Community" data-ru="Закрытое сообщество">Private Community</h3>
+          <p data-en="Member status gives you access to the community, results feed, and full round history." data-ru="Статус участника открывает доступ к сообществу, ленте результатов и полной истории раундов.">Member status gives you access to the community, results feed, and full round history.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="section-inner">
+    <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
+      <span class="section-label" data-en="Questions" data-ru="Вопросы">Questions</span>
+      <h2 class="section-title" data-en="Frequently Asked" data-ru="Частые вопросы">Frequently Asked</h2>
+    </div>
+    <div class="faq-list reveal">
+      <details class="faq-item">
+        <summary data-en="Which network and coin do I send?" data-ru="Какую сеть и монету отправлять?">Which network and coin do I send?</summary>
+        <p data-en="USDT on the BSC (BEP-20) network only. Sending on any other network (TRC-20, ERC-20, etc.) will not be detected and cannot be recovered by the bot." data-ru="Только USDT в сети BSC (BEP-20). Отправка в любой другой сети (TRC-20, ERC-20 и т.д.) не будет обнаружена ботом и не может быть возвращена автоматически.">USDT on the BSC (BEP-20) network only. Sending on any other network (TRC-20, ERC-20, etc.) will not be detected and cannot be recovered by the bot.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-en="Why hasn't the bot confirmed my payment?" data-ru="Почему бот не подтверждает мой платёж?">Why hasn't the bot confirmed my payment?</summary>
+        <p data-en="The bot assigns you a unique exact amount when you press Participate — sending that exact figure lets it auto-detect your transfer, usually within ~30 seconds. If you sent a different amount or it still hasn't confirmed after a few minutes, paste your transaction hash (TXID) directly in the chat for manual verification." data-ru="При нажатии «Участвовать» бот выдаёт уникальную точную сумму — если отправить её без округления, платёж определяется автоматически, обычно за ~30 секунд. Если сумма отличалась или прошло уже несколько минут, вставь хэш транзакции (TXID) прямо в чат для ручной проверки.">The bot assigns you a unique exact amount when you press Participate — sending that exact figure lets it auto-detect your transfer, usually within ~30 seconds. If you sent a different amount or it still hasn't confirmed after a few minutes, paste your transaction hash (TXID) directly in the chat for manual verification.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-en="How is the winner actually chosen?" data-ru="Как на самом деле выбирается победитель?">How is the winner actually chosen?</summary>
+        <p data-en="By taking the hash of a specific future BSC block, announced in advance, and computing hash % participant count. Nobody — including the club — can predict or influence a block hash before it's mined, and anyone can verify the calculation afterward on BscScan." data-ru="Берётся хэш заранее объявленного будущего блока BSC и вычисляется хэш % число участников. Никто — включая клуб — не может предсказать или повлиять на хэш блока до его добычи, а расчёт может проверить любой на BscScan.">By taking the hash of a specific future BSC block, announced in advance, and computing hash % participant count. Nobody — including the club — can predict or influence a block hash before it's mined, and anyone can verify the calculation afterward on BscScan.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-en="What if the round takes a while to fill?" data-ru="Что если раунд долго не заполняется?">What if the round takes a while to fill?</summary>
+        <p data-en="Nothing is lost — your ticket and contribution stay reserved until the round fills and the draw runs. You can check live progress any time with the 💰 Pool option in the bot." data-ru="Ничего не пропадёт — твой билет и взнос сохраняются до заполнения раунда и розыгрыша. Актуальный прогресс всегда можно посмотреть через «💰 Банк» в боте.">Nothing is lost — your ticket and contribution stay reserved until the round fills and the draw runs. You can check live progress any time with the 💰 Pool option in the bot.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-en="Can I get more than one ticket?" data-ru="Можно ли получить больше одного билета?">Can I get more than one ticket?</summary>
+        <p data-en="One paid entry per person per round. You can earn extra free tickets by inviting friends — see 🔗 Invite in the bot." data-ru="Один платный билет на человека за раунд. Дополнительные бесплатные билеты можно заработать, приглашая друзей — см. «🔗 Пригласить» в боте.">One paid entry per person per round. You can earn extra free tickets by inviting friends — see 🔗 Invite in the bot.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- HISTORY -->
+<section id="history">
+  <div class="section-inner">
+    <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
+      <span class="section-label" data-en="Verifiable Results" data-ru="Проверяемые результаты">Verifiable Results</span>
+      <h2 class="section-title" data-en="Round History" data-ru="История раундов">Round History</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Every completed round, every winner, every BSC block — public and checkable by anyone." data-ru="Каждый завершённый раунд, каждый победитель, каждый блок BSC — публично и проверяемо любым.">Every completed round, every winner, every BSC block — public and checkable by anyone.</p>
+    </div>
+    <div class="history-list reveal" id="history-list">
+      <div class="history-empty" data-en="Loading round history…" data-ru="Загружаю историю раундов…">Loading round history…</div>
+    </div>
+  </div>
+</section>
+
+<!-- TELEGRAM LINKS -->
+<section class="tg-section" id="telegram">
+  <div class="tg-inner">
+    <div class="reveal" style="text-align:center;max-width:560px;margin:0 auto">
+      <span class="section-label" data-en="Find Us on Telegram" data-ru="Мы в Telegram">Find Us on Telegram</span>
+      <h2 class="section-title" data-en="Join the Community" data-ru="Присоединяйтесь">Join the Community</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Subscribe to the channel for news and results — then use the bot to become a member and participate in the club fund distribution." data-ru="Подпишитесь на канал для новостей и результатов — затем используйте бота, чтобы стать участником и участвовать в распределении клубного фонда.">Subscribe to the channel for news and results — then use the bot to become a member and participate in the club fund distribution.</p>
+    </div>
+    <div class="tg-cards reveal">
+      <a href="https://t.me/realcryptofortuna" target="_blank" rel="noopener" class="tg-card">
+        <div class="tg-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
+        </div>
+        <div class="tg-card-body">
+          <div class="tg-card-type" data-en="Telegram Channel" data-ru="Telegram Канал">Telegram Channel</div>
+          <div class="tg-card-name">@realcryptofortuna</div>
+          <p class="tg-card-desc" data-en="News, round results, block verification, and community updates. Subscribe to stay informed." data-ru="Новости, результаты раундов, верификация блоков и обновления сообщества. Подписывайтесь, чтобы быть в курсе.">News, round results, block verification, and community updates. Subscribe to stay informed.</p>
+        </div>
+        <div class="tg-card-arrow">→</div>
+      </a>
+      <a href="https://t.me/RealCryptoFortunaBot" target="_blank" rel="noopener" class="tg-card">
+        <div class="tg-card-icon" style="background: linear-gradient(135deg, #FFD060, #B8860B);">
+          <svg viewBox="0 0 24 24" fill="#000"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+        </div>
+        <div class="tg-card-body">
+          <div class="tg-card-type" data-en="Telegram Bot" data-ru="Telegram Бот">Telegram Bot</div>
+          <div class="tg-card-name">@RealCryptoFortunaBot</div>
+          <p class="tg-card-desc" data-en="Make your voluntary contribution, receive member status, and participate in fund distribution automatically." data-ru="Сделайте добровольный взнос, получите статус участника и автоматически участвуйте в распределении фонда.">Make your voluntary contribution, receive member status, and participate in fund distribution automatically.</p>
+        </div>
+        <div class="tg-card-arrow">→</div>
+      </a>
+    </div>
+    <div class="tg-feed reveal">
+      <div class="tg-feed-head" data-en="Live channel feed" data-ru="Живая лента канала">Live channel feed</div>
+      <iframe src="https://t.me/s/realcryptofortuna" loading="lazy" title="Crypto Fortuna Telegram channel"></iframe>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-glow"></div>
+  <div class="cta-inner reveal">
+    <span class="section-label" data-en="Get Started Today" data-ru="Начните сегодня">Get Started Today</span>
+    <h2 class="cta-title" data-en="Ready to Join?" data-ru="Готовы вступить?">Ready to Join?</h2>
+    <p class="cta-body" data-en="Become a member of Crypto Fortuna Club. 5 USDT voluntary contribution · BSC network · Instant confirmation." data-ru="Станьте участником Crypto Fortuna Club. Добровольный взнос 5 USDT · Сеть BSC · Мгновенное подтверждение.">Become a member of Crypto Fortuna Club. 5 USDT voluntary contribution · BSC network · Instant confirmation.</p>
+    <div class="cta-btns">
+      <a href="https://t.me/RealCryptoFortunaBot" target="_blank" rel="noopener" class="cta-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
+        <span data-en="Join via Bot" data-ru="Вступить через бота">Join via Bot</span>
+      </a>
+      <a href="https://t.me/realcryptofortuna" target="_blank" rel="noopener" class="cta-btn outline">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
+        <span data-en="Subscribe to Channel" data-ru="Подписаться на канал">Subscribe to Channel</span>
+      </a>
+    </div>
+    <p class="cta-note" data-en="Telegram required · BSC USDT · Voluntary participation · Reward not guaranteed" data-ru="Требуется Telegram · BSC USDT · Участие добровольно · Поощрение не гарантируется">Telegram required · BSC USDT · Voluntary participation · Reward not guaranteed</p>
+  </div>
+</section>
+
+<!-- DISCLAIMER -->
+<section>
+  <div class="disclaimer-inner reveal">
+    <div class="disclaimer-title" data-en="⚖️ Legal Disclaimer" data-ru="⚖️ Правовая оговорка">⚖️ Legal Disclaimer</div>
+    <p class="disclaimer-text" data-en="Crypto Fortuna Club is a private community. All membership contributions are strictly voluntary. Participation does not constitute payment for gambling, a lottery, or any financial service. Receiving a reward is not guaranteed. The project makes no promises of financial returns or investment income. Members participate at their own discretion. This website is for informational purposes only and does not constitute financial or legal advice." data-ru="Crypto Fortuna Club является частным сообществом. Все членские взносы носят исключительно добровольный характер. Участие не является оплатой за азартную игру, лотерею или финансовую услугу. Получение поощрения не гарантируется. Проект не обещает финансовой доходности или инвестиционного дохода. Участники принимают решение об участии самостоятельно. Данный сайт носит исключительно информационный характер и не является финансовой или юридической консультацией.">
+      Crypto Fortuna Club is a private community. All membership contributions are strictly voluntary. Participation does not constitute payment for gambling, a lottery, or any financial service. Receiving a reward is not guaranteed. The project makes no promises of financial returns or investment income. Members participate at their own discretion. This website is for informational purposes only and does not constitute financial or legal advice.
+    </p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">© 2025 Crypto Fortuna Club</div>
+    <div class="footer-links">
+      <a href="https://t.me/realcryptofortuna" target="_blank" data-en="Channel" data-ru="Канал">Channel</a>
+      <a href="https://t.me/RealCryptoFortunaBot" target="_blank" data-en="Bot" data-ru="Бот">Bot</a>
+      <a href="https://bscscan.com" target="_blank">BSCScan</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// PARTICLES
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+let W, H, pts = [];
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+function init(){
+  pts = [];
+  const n = Math.floor(W*H/16000);
+  for(let i=0;i<n;i++) pts.push({x:Math.random()*W,y:Math.random()*H,r:0.3+Math.random()*1.5,vx:(Math.random()-0.5)*0.12,vy:-(0.05+Math.random()*0.15),a:0.1+Math.random()*0.55,p:Math.random()*Math.PI*2});
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  for(let p of pts){
+    p.x+=p.vx; p.y+=p.vy; p.p+=0.013;
+    if(p.y<-5){p.y=H+5;p.x=Math.random()*W;}
+    if(p.x<-5) p.x=W+5; if(p.x>W+5) p.x=-5;
+    const a=p.a*(0.6+0.4*Math.sin(p.p));
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,208,96,${a})`; ctx.fill();
+  }
+  requestAnimationFrame(draw);
+}
+resize(); init(); draw();
+window.addEventListener('resize',()=>{resize();init();});
+
+// NAV SCROLL
+const nav = document.getElementById('main-nav');
+window.addEventListener('scroll',()=>{
+  nav.style.background = window.scrollY>60 ? 'rgba(8,8,16,0.97)' : '';
+});
+
+// REVEAL
+const els = document.querySelectorAll('.reveal');
+const obs = new IntersectionObserver((entries)=>{
+  entries.forEach((e,i)=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('visible'),i*80); obs.unobserve(e.target); } });
+},{threshold:0.1});
+els.forEach(e=>obs.observe(e));
+
+// LANGUAGE SWITCHER
+let currentLang = 'en';
+function setLang(lang){
+  currentLang = lang;
+  document.getElementById('btn-en').classList.toggle('active', lang==='en');
+  document.getElementById('btn-ru').classList.toggle('active', lang==='ru');
+  document.documentElement.lang = lang==='ru'?'ru':'en';
+  document.querySelectorAll('[data-en][data-ru]').forEach(el=>{
+    const text = el.getAttribute('data-'+lang);
+    if(text !== null) el.innerHTML = text;
+  });
+}
+// detect browser language on load
+const browserLang = (navigator.language||navigator.userLanguage||'').slice(0,2).toLowerCase();
+if(browserLang === 'ru') setLang('ru');
+
+// YANDEX.METRIKA GOALS — track CTA clicks separately from pageviews
+function trackGoal(name){
+  if (typeof ym === 'function') ym(109595723, 'reachGoal', name);
+}
+document.querySelectorAll('a[href="https://t.me/RealCryptoFortunaBot"]').forEach(function(el){
+  el.addEventListener('click', function(){ trackGoal('click_join_bot'); });
+});
+document.querySelectorAll('a[href="https://t.me/realcryptofortuna"]').forEach(function(el){
+  el.addEventListener('click', function(){ trackGoal('click_channel'); });
+});
+</script>
+<script src="script.js"></script>
+</body>
+</html>

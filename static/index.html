@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Crypto Fortuna</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #0D0D1A);
+    --surface: var(--tg-theme-secondary-bg-color, #14141F);
+    --text: var(--tg-theme-text-color, #F5EAC8);
+    --hint: var(--tg-theme-hint-color, #8A8271);
+    --link: var(--tg-theme-link-color, #FFD060);
+    --btn: var(--tg-theme-button-color, #FFD060);
+    --btn-text: var(--tg-theme-button-text-color, #05060B);
+    --gold: #FFD060;
+    --line: rgba(255,208,96,0.14);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 20px 16px 32px;
+  }
+  .brand { text-align: center; margin-bottom: 22px; }
+  .brand img { width: 56px; height: 56px; border-radius: 14px; margin-bottom: 8px; }
+  .brand h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.04em; color: var(--gold); }
+  .brand p { margin: 4px 0 0; font-size: 0.8rem; color: var(--hint); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .card-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--hint);
+    margin-bottom: 10px;
+  }
+
+  .progress-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .progress-row .n { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .progress-row .n small { font-size: 0.85rem; color: var(--hint); font-weight: 400; }
+  .progress-track { height: 8px; border-radius: 5px; background: rgba(255,208,96,0.12); overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), #FF9A00); transition: width 0.5s ease; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat-value { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+  .stat-label { font-size: 0.72rem; color: var(--hint); margin-top: 3px; }
+
+  .pay-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-top: 1px solid var(--line);
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 0.82rem;
+    word-break: break-all;
+  }
+  .pay-row:first-of-type { border-top: none; }
+  .pay-copy {
+    flex-shrink: 0; margin-left: 10px;
+    background: none; border: 1px solid var(--line); color: var(--gold);
+    border-radius: 6px; padding: 5px 9px; font-size: 0.72rem; cursor: pointer;
+  }
+
+  .cta {
+    display: block; width: 100%; text-align: center;
+    background: var(--btn); color: var(--btn-text);
+    border: none; border-radius: 10px; padding: 13px;
+    font-size: 0.95rem; font-weight: 700; letter-spacing: 0.02em;
+    text-decoration: none; margin-top: 4px;
+  }
+
+  .foot { text-align: center; font-size: 0.72rem; color: var(--hint); margin-top: 18px; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+  <div class="brand">
+    <h1>CRYPTO FORTUNA</h1>
+    <p>Прозрачный клубный фонд на BSC</p>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Текущий раунд</div>
+    <div class="progress-row">
+      <div class="n"><span id="p-count">—</span> <small>/ <span id="p-limit">—</span> участников</small></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="p-fill"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div>
+        <div class="stat-value" id="s-bank">— USDT</div>
+        <div class="stat-label">Банк раунда</div>
+      </div>
+      <div>
+        <div class="stat-value" id="s-prize">— USDT</div>
+        <div class="stat-label">Приз победителю (90%)</div>
+      </div>
+      <div>
+        <div class="stat-value" id="s-paid">— USDT</div>
+        <div class="stat-label">Выплачено всего</div>
+      </div>
+      <div>
+        <div class="stat-value" id="s-draws">—</div>
+        <div class="stat-label">Розыгрышей проведено</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Реквизиты для взноса</div>
+    <div class="pay-row">
+      <span id="w-address">—</span>
+      <button class="pay-copy" onclick="copyField('w-address')">Копировать</button>
+    </div>
+    <div class="pay-row">
+      <span id="w-fee">—</span>
+      <button class="pay-copy" onclick="copyField('w-fee')">Копировать</button>
+    </div>
+  </div>
+
+  <a class="cta" href="#" id="cta-participate">🎟 Участвовать в боте</a>
+  <div class="foot">Победитель определяется хэшем блока BSC — проверяемо любым в BscScan</div>
+
+<script>
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  var botUsername = null; // filled from data attribute if present
+
+  async function loadStats() {
+    try {
+      var res = await fetch('/stats');
+      var d = await res.json();
+
+      document.getElementById('p-count').innerText = d.current_participants ?? 0;
+      document.getElementById('p-limit').innerText = d.current_limit ?? '—';
+      var pct = d.current_limit ? Math.min(100, Math.round((d.current_participants / d.current_limit) * 100)) : 0;
+      document.getElementById('p-fill').style.width = pct + '%';
+
+      var bank = d.current_bank ?? 0;
+      document.getElementById('s-bank').innerText = bank + ' USDT';
+      document.getElementById('s-prize').innerText = Math.round(bank * 0.9) + ' USDT';
+      document.getElementById('s-paid').innerText = Math.round((d.total_commission || 0) * 9) + ' USDT';
+      document.getElementById('s-draws').innerText = d.total_draws ?? 0;
+
+      document.getElementById('w-address').innerText = d.wallet_address || '—';
+      document.getElementById('w-fee').innerText = (d.entry_fee ?? '—') + ' USDT (минимум)';
+    } catch (e) {
+      console.log('stats unavailable', e);
+    }
+  }
+
+  function copyField(id) {
+    var text = document.getElementById(id).innerText;
+    navigator.clipboard && navigator.clipboard.writeText(text);
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  }
+
+  document.getElementById('cta-participate').addEventListener('click', function (e) {
+    e.preventDefault();
+    if (tg) { tg.close(); } else { window.location.href = 'https://t.me/RealCryptoFortunaBot'; }
+  });
+
+  loadStats();
+  setInterval(loadStats, 15000);
+</script>
+</body>
+</html>

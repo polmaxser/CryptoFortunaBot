@@ -1,0 +1,17 @@
+# Включаем движок
+RewriteEngine On
+
+# Перенаправляем www на без www (с HTTPS)
+RewriteCond %{HTTP_HOST} ^www\.cryptofortuna\.online [NC]
+RewriteRule ^(.*)$ https://cryptofortuna.online/$1 [L,R=301]
+
+# Отдаём index.html для всех запросов (SPA режим)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
+
+# Запрещаем доступ к .htaccess и скрытым файлам
+<Files .htaccess>
+Order Allow,Deny
+Deny from all
+</Files>

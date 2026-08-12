@@ -27,14 +27,20 @@ import hashlib
 import time
 from datetime import datetime, timezone
 from functools import wraps
+from urllib.parse import quote
 
 import aiohttp
 import asyncpg
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message
+from aiogram.types import (
+    ReplyKeyboardMarkup, KeyboardButton, Message, WebAppInfo,
+    InlineKeyboardMarkup, InlineKeyboardButton,
+)
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -50,6 +56,8 @@ ADMIN_ID          = int(os.getenv("ADMIN_ID", "8333494757"))
 CHANNEL_ID        = os.getenv("CHANNEL_ID", "@realcryptofortuna")
 ENTRY_FEE         = int(os.getenv("ENTRY_FEE", "5"))
 PARTICIPANT_LIMIT = int(os.getenv("PARTICIPANT_LIMIT", "100"))
+REFERRALS_PER_FREE_TICKET = int(os.getenv("REFERRALS_PER_FREE_TICKET", "5"))
+PAYMENT_REMINDER_HOURS = float(os.getenv("PAYMENT_REMINDER_HOURS", "3"))
 RENDER_URL        = os.getenv("RENDER_EXTERNAL_URL", "")
 USDT_CONTRACT     = "0x55d398326f99059ff775485246999027b3197955"
 
@@ -70,6 +78,9 @@ _lang_cache: dict[int, str] = {}
 # Prevents duplicate verifications and allows /cancel.
 _pending: dict[int, asyncio.Task] = {}
 
+# Last BSC block scanned by payment_watcher() for incoming USDT transfers.
+_last_scanned_block: int | None = None
+
 bot = Bot(
     token=BOT_TOKEN,
     default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2),
@@ -88,6 +99,24 @@ def esc(text: str) -> str:
 
 
 # ══════════════════════════════════════════════════════════════
+#  ADMIN ALERTS  — throttled so a flaky RPC doesn't spam the admin
+# ══════════════════════════════════════════════════════════════
+_last_alert: dict[str, float] = {}
+ALERT_COOLDOWN_SEC = 1800  # 30 min between repeats of the same alert kind
+
+
+async def alert_admin(kind: str, message: str) -> None:
+    now = time.time()
+    if now - _last_alert.get(kind, 0) < ALERT_COOLDOWN_SEC:
+        return
+    _last_alert[kind] = now
+    try:
+        await bot.send_message(ADMIN_ID, f"⚠️ {esc(message)}", parse_mode="MarkdownV2")
+    except Exception as exc:
+        log.error("Could not alert admin: %s", exc)
+
+
+# ══════════════════════════════════════════════════════════════
 #  TRANSLATIONS
 # ══════════════════════════════════════════════════════════════
 T: dict[str, dict[str, str]] = {
@@ -98,6 +127,9 @@ T: dict[str, dict[str, str]] = {
     "btn_stats":       {"en": "📊 Statistics",    "ru": "📊 Статистика"},
     "btn_history":     {"en": "📜 History",       "ru": "📜 История"},
     "btn_week":        {"en": "📆 This Week",     "ru": "📆 Неделя"},
+    "btn_invite":      {"en": "🔗 Invite",        "ru": "🔗 Пригласить"},
+    "btn_app":         {"en": "📱 Open App",      "ru": "📱 Открыть приложение"},
+    "btn_profile":     {"en": "👤 Profile",       "ru": "👤 Профиль"},
     "btn_language":    {"en": "🌐 Русский",        "ru": "🌐 English"},
 
     # ── /start ────────────────────────────────────────────────
@@ -128,21 +160,23 @@ T: dict[str, dict[str, str]] = {
     "participate_info": {
         "en": (
             "🎟 *How to join the current round:*\n\n"
-            "1️⃣ Send *{fee} USDT* \\(BEP\\-20, BSC network\\) to:\n\n"
-            "`{wallet}`\n\n"
-            "2️⃣ Copy your *transaction hash \\(TXID\\)*\n"
-            "3️⃣ Paste it here — the bot verifies it automatically\n\n"
-            "⚠️ *Important:* USDT BEP\\-20 on BSC only\\. "
+            "1️⃣ Send *exactly {fee} USDT* \\(BEP\\-20, BSC network\\) to the address below\\.\n"
+            "The amount is unique to you — sending the exact figure lets the bot detect "
+            "and confirm your entry *automatically*, usually within \\~30 seconds\\.\n\n"
+            "2️⃣ Didn't get confirmed in a few minutes? Paste your *transaction hash \\(TXID\\)* "
+            "here and the bot will verify it manually\\.\n\n"
+            "⚠️ *Important:* USDT BEP\\-20 on BSC only, and the amount must match exactly\\. "
             "Other networks will not be detected\\.\n\n"
             "👥 Current participants: *{count}/{limit}*"
         ),
         "ru": (
             "🎟 *Как участвовать в текущем раунде:*\n\n"
-            "1️⃣ Отправь *{fee} USDT* \\(BEP\\-20, сеть BSC\\) на адрес:\n\n"
-            "`{wallet}`\n\n"
-            "2️⃣ Скопируй *хэш транзакции \\(TXID\\)*\n"
-            "3️⃣ Вставь его сюда — бот проверит автоматически\n\n"
-            "⚠️ *Важно:* Только USDT BEP\\-20 в сети BSC\\. "
+            "1️⃣ Отправь *ровно {fee} USDT* \\(BEP\\-20, сеть BSC\\) на адрес ниже\\.\n"
+            "Сумма уникальна именно для тебя — если отправить её точно, бот обнаружит "
+            "и подтвердит участие *автоматически*, обычно за \\~30 секунд\\.\n\n"
+            "2️⃣ Не подтвердилось за пару минут? Вставь сюда *хэш транзакции \\(TXID\\)*, "
+            "и бот проверит вручную\\.\n\n"
+            "⚠️ *Важно:* Только USDT BEP\\-20 в сети BSC, и сумма должна совпадать точно\\. "
             "Другие сети не будут обнаружены\\.\n\n"
             "👥 Текущих участников: *{count}/{limit}*"
         ),
@@ -153,18 +187,24 @@ T: dict[str, dict[str, str]] = {
         "en": (
             "💰 *Current Round Pool*\n\n"
             "👥 Participants: *{count}/{limit}*\n"
+            "{bar}\n"
             "💵 Total pool: *{bank} USDT*\n"
             "🏆 Winner's reward \\(90%\\): *{prize:.2f} USDT*\n"
-            "📋 Open slots: *{slots}*"
+            "📋 Open slots: *{slots}*\n"
+            "⏳ Est\\. time to fill: *{eta}*"
         ),
         "ru": (
             "💰 *Банк текущего раунда*\n\n"
             "👥 Участников: *{count}/{limit}*\n"
+            "{bar}\n"
             "💵 Общий банк: *{bank} USDT*\n"
             "🏆 Приз победителю \\(90%\\): *{prize:.2f} USDT*\n"
-            "📋 Свободных мест: *{slots}*"
+            "📋 Свободных мест: *{slots}*\n"
+            "⏳ Ожидаемое время до заполнения: *{eta}*"
         ),
     },
+    "eta_unknown": {"en": "not enough data yet", "ru": "пока недостаточно данных"},
+    "eta_full":    {"en": "round is full",        "ru": "раунд заполнен"},
 
     # ── Members list ──────────────────────────────────────────
     "members_header":  {"en": "👥 *Participants — {count} total*\n\n",
@@ -418,6 +458,109 @@ T: dict[str, dict[str, str]] = {
         "en": "✅ *Link for {channel}:*\n\n`{link}`\n\n• Campaign: `{campaign}`\n• Code: `{code}`",
         "ru": "✅ *Ссылка для {channel}:*\n\n`{link}`\n\n• Кампания: `{campaign}`\n• Код: `{code}`",
     },
+
+    # ── Referral (user-facing) ───────────────────────────────────
+    "invite_info": {
+        "en": (
+            "🔗 *Invite friends, earn free tickets*\n\n"
+            "Your personal link:\n`{link}`\n\n"
+            "👥 Friends invited who joined a round: *{count}*\n"
+            "🎁 Free tickets available: *{free}*\n\n"
+            "For every *{goal}* friends who make a real entry, you get *1 free ticket* "
+            "\\— redeem it with /free\\_ticket\\."
+        ),
+        "ru": (
+            "🔗 *Приглашай друзей — получай бесплатные билеты*\n\n"
+            "Твоя личная ссылка:\n`{link}`\n\n"
+            "👥 Приглашённых друзей, вступивших в раунд: *{count}*\n"
+            "🎁 Доступно бесплатных билетов: *{free}*\n\n"
+            "За каждые *{goal}* друзей, сделавших реальный взнос, ты получаешь *1 бесплатный билет* "
+            "\\— используй командой /free\\_ticket\\."
+        ),
+    },
+    "free_ticket_none": {
+        "en": "🎁 You don't have any free tickets yet\\. Invite friends with 🔗 Invite to earn one\\.",
+        "ru": "🎁 У тебя пока нет бесплатных билетов\\. Приглашай друзей через 🔗 Пригласить, чтобы заработать\\.",
+    },
+    "free_ticket_used": {
+        "en": (
+            "🎁 *Free ticket redeemed\\!*\n\n"
+            "🎟 Your ticket number: *\\#{ticket}*\n"
+            "💰 Pool: *{bank} USDT* \\({count} participants\\)\n\n"
+            "Good luck\\! 🍀"
+        ),
+        "ru": (
+            "🎁 *Бесплатный билет использован\\!*\n\n"
+            "🎟 Твой номер билета: *\\#{ticket}*\n"
+            "💰 Банк: *{bank} USDT* \\({count} участников\\)\n\n"
+            "Удачи\\! 🍀"
+        ),
+    },
+    "share_win_dm": {
+        "en": (
+            "🏆 *You won Draw \\#{round}\\!*\n\n"
+            "🎟 Ticket \\#{ticket}\n"
+            "🎁 Prize: *{prize:.2f} USDT*\n\n"
+            "Congratulations\\! Share the news \\— it's fully verifiable on BSC\\."
+        ),
+        "ru": (
+            "🏆 *Ты выиграл в розыгрыше \\#{round}\\!*\n\n"
+            "🎟 Билет \\#{ticket}\n"
+            "🎁 Приз: *{prize:.2f} USDT*\n\n"
+            "Поздравляем\\! Поделись новостью \\— всё проверяемо в BSC\\."
+        ),
+    },
+    "share_win_button": {"en": "📤 Share the win", "ru": "📤 Поделиться результатом"},
+    "share_win_text": {
+        "en": "🏆 I just won {prize:.2f} USDT in Crypto Fortuna Club! Ticket #{ticket}, Draw #{round} — transparent and verifiable on BSC 🔐",
+        "ru": "🏆 Я выиграл {prize:.2f} USDT в Crypto Fortuna Club! Билет #{ticket}, розыгрыш #{round} — прозрачно и проверяемо в BSC 🔐",
+    },
+    "participate_reminder": {
+        "en": (
+            "👋 *Still there?*\n\n"
+            "You started joining the current round but we haven't seen your payment yet\\.\n\n"
+            "💎 Send *exactly {fee} USDT* \\(BEP\\-20, BSC\\) to:\n`{wallet}`\n\n"
+            "The bot will pick it up automatically \\— no rush, your spot is still open\\."
+        ),
+        "ru": (
+            "👋 *Всё ещё здесь?*\n\n"
+            "Ты начал вступление в текущий раунд, но мы пока не увидели оплату\\.\n\n"
+            "💎 Отправь *ровно {fee} USDT* \\(BEP\\-20, BSC\\) на адрес:\n`{wallet}`\n\n"
+            "Бот подхватит платёж автоматически \\— место всё ещё за тобой\\."
+        ),
+    },
+    "profile_info": {
+        "en": (
+            "👤 *Your profile*\n\n"
+            "🎟 Rounds joined: *{joined}*\n"
+            "🏆 Rounds won: *{wins}*\n"
+            "💰 Total winnings: *{winnings:.2f} USDT*\n"
+            "💸 Total contributed: *{spent:.2f} USDT*\n\n"
+            "🔗 Friends invited: *{referrals}*\n"
+            "🎁 Free tickets available: *{free}*"
+        ),
+        "ru": (
+            "👤 *Твой профиль*\n\n"
+            "🎟 Раундов сыграно: *{joined}*\n"
+            "🏆 Раундов выиграно: *{wins}*\n"
+            "💰 Всего выиграно: *{winnings:.2f} USDT*\n"
+            "💸 Всего внесено: *{spent:.2f} USDT*\n\n"
+            "🔗 Приглашено друзей: *{referrals}*\n"
+            "🎁 Доступно бесплатных билетов: *{free}*"
+        ),
+    },
+    "referral_reward_earned": {
+        "en": (
+            "🎉 *Referral reward\\!*\n\n"
+            "One of your friends just made their entry \\— you've now invited *{count}* people who joined\\.\n"
+            "🎁 You earned a *free ticket*\\! Redeem it with /free\\_ticket\\."
+        ),
+        "ru": (
+            "🎉 *Реферальная награда\\!*\n\n"
+            "Один из твоих друзей только что вступил в раунд \\— теперь на твоём счету *{count}* приглашённых\\.\n"
+            "🎁 Ты заработал *бесплатный билет*\\! Используй командой /free\\_ticket\\."
+        ),
+    },
 }
 
 
@@ -456,6 +599,12 @@ CREATE TABLE IF NOT EXISTS transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS pending_payments (
+    telegram_id BIGINT        PRIMARY KEY,
+    amount      NUMERIC(20,6) NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ   DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS draw_history (
     id                 SERIAL PRIMARY KEY,
     round_number       INTEGER     NOT NULL,
@@ -479,6 +628,13 @@ CREATE TABLE IF NOT EXISTS referral_sources (
     invited_by BIGINT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS free_tickets INTEGER DEFAULT 0;
+ALTER TABLE referral_sources ADD COLUMN IF NOT EXISTS rewarded_at TIMESTAMPTZ;
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT FALSE;
+ALTER TABLE draw_history ADD COLUMN IF NOT EXISTS winner_telegram_id BIGINT;
+ALTER TABLE pending_payments ADD COLUMN IF NOT EXISTS reminded_at TIMESTAMPTZ;
 """
 
 
@@ -506,6 +662,7 @@ async def keep_db_alive() -> None:
             log.info("✅ DB keep-alive OK")
         except Exception as exc:
             log.error("❌ DB keep-alive failed: %s", exc)
+            await alert_admin("db_down", f"DB keep-alive failed: {exc}")
 
 
 # ── User helpers ───────────────────────────────────────────────
@@ -538,6 +695,87 @@ async def upsert_user(uid: int, username: str) -> None:
         )
 
 
+async def get_pool_counts(conn) -> tuple[int, int]:
+    """Returns (total_participants, paid_participants). Free (referral) tickets
+    take a slot in the draw but contribute 0 USDT to the payable bank."""
+    total = await conn.fetchval("SELECT COUNT(*) FROM participants")
+    paid = await conn.fetchval("SELECT COUNT(*) FROM participants WHERE is_free = FALSE")
+    return total, paid
+
+
+async def grant_referral_reward(conn, referred_uid: int) -> None:
+    """Called once, the first time a referred user's payment is confirmed.
+    Credits the referrer's referral_count and, every REFERRALS_PER_FREE_TICKET,
+    a free ticket — then notifies them."""
+    ref_row = await conn.fetchrow(
+        "SELECT invited_by FROM referral_sources "
+        "WHERE user_id=$1 AND invited_by IS NOT NULL AND rewarded_at IS NULL",
+        referred_uid,
+    )
+    if not ref_row:
+        return
+    referrer_uid = ref_row["invited_by"]
+
+    await conn.execute(
+        "UPDATE referral_sources SET rewarded_at = NOW() "
+        "WHERE user_id=$1 AND invited_by IS NOT NULL AND rewarded_at IS NULL",
+        referred_uid,
+    )
+    new_count = await conn.fetchval(
+        "UPDATE users SET referral_count = referral_count + 1 "
+        "WHERE telegram_id=$1 RETURNING referral_count",
+        referrer_uid,
+    )
+    if new_count is None:
+        return
+
+    if new_count % REFERRALS_PER_FREE_TICKET == 0:
+        await conn.execute(
+            "UPDATE users SET free_tickets = free_tickets + 1 WHERE telegram_id=$1",
+            referrer_uid,
+        )
+        try:
+            referrer_lang = await get_lang(referrer_uid)
+            await bot.send_message(
+                referrer_uid,
+                t("referral_reward_earned", referrer_lang, count=new_count),
+            )
+        except Exception as exc:
+            log.warning("Could not notify referrer %s: %s", referrer_uid, exc)
+
+
+def render_bar(count: int, limit: int, width: int = 14) -> str:
+    if limit <= 0:
+        return ""
+    pct = min(1.0, count / limit)
+    filled = round(pct * width)
+    return "▓" * filled + "░" * (width - filled) + f" {round(pct * 100)}%"
+
+
+def format_eta(count: int, limit: int, joined_at: list[datetime], lang: str) -> str:
+    remaining = limit - count
+    if remaining <= 0:
+        return t("eta_full", lang)
+    if len(joined_at) < 2:
+        return t("eta_unknown", lang)
+
+    span_sec = (joined_at[-1] - joined_at[0]).total_seconds()
+    if span_sec <= 0:
+        return t("eta_unknown", lang)
+
+    avg_interval = span_sec / (len(joined_at) - 1)
+    eta_sec = avg_interval * remaining
+
+    unit = "мин" if lang == "ru" else "min"
+    if eta_sec < 3600:
+        return f"~{max(1, round(eta_sec / 60))} {unit}"
+    unit = "ч" if lang == "ru" else "h"
+    if eta_sec < 86400 * 2:
+        return f"~{round(eta_sec / 3600)} {unit}"
+    unit = "дн" if lang == "ru" else "d"
+    return f"~{round(eta_sec / 86400)} {unit}"
+
+
 # ══════════════════════════════════════════════════════════════
 #  KEYBOARDS
 # ══════════════════════════════════════════════════════════════
@@ -545,12 +783,17 @@ def make_keyboard(lang: str) -> ReplyKeyboardMarkup:
     rows = [
         [t("btn_participate", lang), t("btn_bank", lang), t("btn_members", lang)],
         [t("btn_stats", lang),       t("btn_history", lang), t("btn_week", lang)],
-        [t("btn_language", lang)],
+        [t("btn_invite", lang),      t("btn_profile", lang), t("btn_language", lang)],
     ]
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=c) for c in row] for row in rows],
-        resize_keyboard=True,
-    )
+    keyboard = [[KeyboardButton(text=c) for c in row] for row in rows]
+
+    # WebApp buttons need a real HTTPS URL — only offered when deployed.
+    if RENDER_URL:
+        keyboard.append([
+            KeyboardButton(text=t("btn_app", lang), web_app=WebAppInfo(url=f"{RENDER_URL}/app/"))
+        ])
+
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 ALL_BUTTON_TEXTS: set[str] = {
@@ -576,6 +819,7 @@ async def bsc_get_current_block() -> int | None:
                 return int(data["result"], 16)
     except Exception as exc:
         log.error("bsc_get_current_block: %s", exc)
+        await alert_admin("rpc_down", f"BSC RPC unreachable (bsc_get_current_block): {exc}")
     return None
 
 
@@ -595,10 +839,36 @@ async def bsc_get_block_hash(block_number: int) -> str | None:
                     return result["hash"]
     except Exception as exc:
         log.error("bsc_get_block_hash: %s", exc)
+        await alert_admin("rpc_down", f"BSC RPC unreachable (bsc_get_block_hash): {exc}")
     return None
 
 
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+
+
+async def bsc_get_logs(from_block: int, to_block: int) -> list[dict]:
+    """USDT Transfer events landing on our wallet in [from_block, to_block]."""
+    padded_wallet = "0x" + "0" * 24 + WALLET_ADDRESS[2:].lower()
+    payload = {
+        "jsonrpc": "2.0", "method": "eth_getLogs",
+        "params": [{
+            "fromBlock": hex(from_block),
+            "toBlock": hex(to_block),
+            "address": USDT_CONTRACT,
+            "topics": [TRANSFER_TOPIC, None, padded_wallet],
+        }],
+        "id": 1,
+    }
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post(
+                _rpc_url(), json=payload, timeout=aiohttp.ClientTimeout(total=15)
+            ) as r:
+                data = await r.json()
+                return data.get("result") or []
+    except Exception as exc:
+        log.error("bsc_get_logs: %s", exc)
+        return []
 
 
 async def bsc_verify_usdt_payment(
@@ -667,6 +937,161 @@ async def bsc_verify_usdt_payment(
     return False, "Verification failed after 3 attempts"
 
 
+async def _generate_unique_amount(conn) -> float:
+    """A slightly-off-round amount (e.g. 5.000437) unique to one pending payer,
+    so incoming transfers can be auto-matched without a memo/TXID paste."""
+    for _ in range(20):
+        offset = random.randint(1, 999999)
+        amount = round(ENTRY_FEE + offset / 1_000_000, 6)
+        taken = await conn.fetchval(
+            "SELECT 1 FROM pending_payments WHERE amount = $1", amount
+        )
+        if not taken:
+            return amount
+    raise RuntimeError("Could not allocate a unique payment amount")
+
+
+# ══════════════════════════════════════════════════════════════
+#  AUTOMATIC PAYMENT DETECTION  — no TXID paste required
+# ══════════════════════════════════════════════════════════════
+async def payment_watcher() -> None:
+    """
+    Polls the wallet for incoming USDT transfers and auto-credits whichever
+    user was assigned that exact amount via 🎟 Participate. Manual TXID paste
+    (see handle_txid below) remains available as a fallback.
+    """
+    global _last_scanned_block
+    while True:
+        await asyncio.sleep(20)
+        try:
+            latest = await bsc_get_current_block()
+            if not latest:
+                continue
+            if _last_scanned_block is None:
+                _last_scanned_block = latest
+                continue
+            if latest <= _last_scanned_block:
+                continue
+
+            from_block = _last_scanned_block + 1
+            to_block = min(latest, from_block + 2000)
+            logs = await bsc_get_logs(from_block, to_block)
+
+            for entry in logs:
+                txid = entry.get("transactionHash")
+                if not txid:
+                    continue
+                amount = round(int(entry.get("data", "0x0"), 16) / 10**18, 6)
+
+                async with db_pool.acquire() as conn:
+                    if await conn.fetchval("SELECT 1 FROM transactions WHERE txid=$1", txid):
+                        continue
+                    pending = await conn.fetchrow(
+                        "SELECT telegram_id FROM pending_payments WHERE amount = $1", amount
+                    )
+                    if not pending:
+                        continue
+                    uid = pending["telegram_id"]
+
+                    already_in = await conn.fetchval(
+                        "SELECT 1 FROM participants WHERE telegram_id = $1", uid
+                    )
+                    count, _ = await get_pool_counts(conn)
+                    if already_in or count >= PARTICIPANT_LIMIT:
+                        await conn.execute(
+                            "DELETE FROM pending_payments WHERE telegram_id = $1", uid
+                        )
+                        continue
+
+                    try:
+                        chat = await bot.get_chat(uid)
+                        uname = chat.username or f"user_{uid}"
+                    except Exception:
+                        uname = f"user_{uid}"
+
+                    ticket = (await conn.fetchval(
+                        "SELECT COALESCE(MAX(ticket_number), 0) FROM participants"
+                    )) + 1
+                    try:
+                        await conn.execute(
+                            "INSERT INTO transactions (txid, user_id, username, amount)"
+                            " VALUES ($1,$2,$3,$4)",
+                            txid, uid, uname, amount,
+                        )
+                        await conn.execute(
+                            "INSERT INTO participants (ticket_number, telegram_id, username)"
+                            " VALUES ($1,$2,$3)",
+                            ticket, uid, f"@{uname}",
+                        )
+                    except asyncpg.UniqueViolationError:
+                        continue
+
+                    await conn.execute(
+                        "DELETE FROM pending_payments WHERE telegram_id = $1", uid
+                    )
+                    await grant_referral_reward(conn, uid)
+                    _, new_paid = await get_pool_counts(conn)
+                    new_count = count + 1
+
+                lang = await get_lang(uid)
+                try:
+                    await bot.send_message(
+                        uid,
+                        t("txid_success", lang,
+                          ticket=ticket, bank=new_paid * ENTRY_FEE, count=new_count),
+                    )
+                except Exception as exc:
+                    log.warning("Could not notify auto-credited user %s: %s", uid, exc)
+                log.info("✅ Auto-detected payment: ticket #%d for @%s (%.6f USDT, tx %s)",
+                         ticket, uname, amount, txid)
+
+                if new_count >= PARTICIPANT_LIMIT and not draw_lock.locked():
+                    asyncio.create_task(run_full_draw())
+
+            _last_scanned_block = to_block
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.exception("payment_watcher crashed: %s", exc)
+            await alert_admin("payment_watcher_down", f"payment_watcher crashed: {exc}")
+
+
+async def abandoned_payment_reminder() -> None:
+    """Nudges users who pressed 🎟 Participate but never sent the payment."""
+    while True:
+        await asyncio.sleep(1800)
+        try:
+            async with db_pool.acquire() as conn:
+                rows = await conn.fetch(
+                    "SELECT telegram_id, amount FROM pending_payments "
+                    "WHERE reminded_at IS NULL "
+                    "AND created_at < NOW() - ($1 || ' hours')::interval",
+                    str(PAYMENT_REMINDER_HOURS),
+                )
+                for row in rows:
+                    await conn.execute(
+                        "UPDATE pending_payments SET reminded_at = NOW() WHERE telegram_id = $1",
+                        row["telegram_id"],
+                    )
+
+            for row in rows:
+                uid = row["telegram_id"]
+                lang = await get_lang(uid)
+                try:
+                    await bot.send_message(
+                        uid,
+                        t("participate_reminder", lang,
+                          fee=f"{float(row['amount']):.6f}", wallet=WALLET_ADDRESS),
+                    )
+                except Exception as exc:
+                    log.warning("Could not send reminder to %s: %s", uid, exc)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.exception("abandoned_payment_reminder crashed: %s", exc)
+            await alert_admin("reminder_down", f"abandoned_payment_reminder crashed: {exc}")
+
+
 # ══════════════════════════════════════════════════════════════
 #  BACKGROUND TXID VERIFICATION TASK
 # ══════════════════════════════════════════════════════════════
@@ -695,7 +1120,7 @@ async def _verify_task(uid: int, txid: str, reply_to: Message, lang: str) -> Non
                 await reply_to.answer(t("txid_already_in", lang))
                 return
 
-            count = await conn.fetchval("SELECT COUNT(*) FROM participants")
+            count, paid = await get_pool_counts(conn)
             if count >= PARTICIPANT_LIMIT:
                 await reply_to.answer(t("round_full", lang, limit=PARTICIPANT_LIMIT))
                 return
@@ -715,13 +1140,17 @@ async def _verify_task(uid: int, txid: str, reply_to: Message, lang: str) -> Non
                     ticket, uid, f"@{uname}",
                 )
                 new_count = count + 1
+                new_paid = paid + 1
             except asyncpg.UniqueViolationError:
                 await reply_to.answer(t("txid_already_in", lang))
                 return
 
+            await conn.execute("DELETE FROM pending_payments WHERE telegram_id = $1", uid)
+            await grant_referral_reward(conn, uid)
+
         await reply_to.answer(
             t("txid_success", lang,
-              ticket=ticket, bank=new_count * ENTRY_FEE, count=new_count)
+              ticket=ticket, bank=new_paid * ENTRY_FEE, count=new_count)
         )
         log.info("✅ Ticket #%d issued to @%s (pool %d/%d)",
                  ticket, uname, new_count, PARTICIPANT_LIMIT)
@@ -750,8 +1179,9 @@ async def publish_draw_announce(
 
 
 async def execute_draw(
-    round_number: int, participants: list[str], target_block: int
-) -> tuple[str, int, float] | None:
+    round_number: int, participants: list[str], target_block: int, paid_count: int,
+    ticket_to_uid: dict[int, int],
+) -> tuple[str, int, float, int | None] | None:
     wait_msg = await bot.send_message(CHANNEL_ID, t("draw_fetching", "en"))
 
     block_hash: str | None = None
@@ -783,9 +1213,10 @@ async def execute_draw(
     winner_parts  = participants[winner_idx].split(". ", 1)
     winner_ticket = int(winner_parts[0])
     winner_uname  = winner_parts[1] if len(winner_parts) > 1 else "unknown"
+    winner_uid    = ticket_to_uid.get(winner_ticket)
 
     count      = len(participants)
-    bank       = count * ENTRY_FEE
+    bank       = paid_count * ENTRY_FEE
     commission = bank * 0.10
     prize      = bank - commission
     now_str    = datetime.now(timezone.utc).strftime("%d\\.%m\\.%Y %H:%M")
@@ -807,7 +1238,29 @@ async def execute_draw(
     except Exception:
         pass
 
-    return winner_uname, winner_ticket, prize
+    return winner_uname, winner_ticket, prize, winner_uid
+
+
+async def notify_winner(winner_uid: int, round_number: int, ticket: int, prize: float) -> None:
+    """DMs the winner a congrats message with a native Telegram share button."""
+    try:
+        lang = await get_lang(winner_uid)
+        bot_me = await bot.get_me()
+        share_text = t("share_win_text", lang, prize=prize, ticket=ticket, round=round_number)
+        share_url = (
+            f"https://t.me/share/url?url={quote(f'https://t.me/{bot_me.username}')}"
+            f"&text={quote(share_text)}"
+        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text=t("share_win_button", lang), url=share_url)
+        ]])
+        await bot.send_message(
+            winner_uid,
+            t("share_win_dm", lang, round=round_number, ticket=ticket, prize=prize),
+            reply_markup=keyboard,
+        )
+    except Exception as exc:
+        log.warning("Could not notify winner %s: %s", winner_uid, exc)
 
 
 async def run_full_draw() -> None:
@@ -816,12 +1269,15 @@ async def run_full_draw() -> None:
         try:
             async with db_pool.acquire() as conn:
                 rows = await conn.fetch(
-                    "SELECT ticket_number, username FROM participants ORDER BY ticket_number"
+                    "SELECT ticket_number, username, telegram_id, is_free"
+                    " FROM participants ORDER BY ticket_number"
                 )
             if len(rows) < 2:
                 return
 
             participants  = [f"{r['ticket_number']}. {r['username']}" for r in rows]
+            paid_count    = sum(1 for r in rows if not r["is_free"])
+            ticket_to_uid = {r["ticket_number"]: r["telegram_id"] for r in rows}
             round_number  = random.randint(1000, 9999)
             current_block = await bsc_get_current_block()
 
@@ -834,25 +1290,30 @@ async def run_full_draw() -> None:
             await publish_draw_announce(round_number, participants, target_block)
             await asyncio.sleep(120)
 
-            result = await execute_draw(round_number, participants, target_block)
+            result = await execute_draw(
+                round_number, participants, target_block, paid_count, ticket_to_uid
+            )
 
             async with db_pool.acquire() as conn:
                 if result:
-                    winner_uname, winner_ticket, prize = result
-                    bank = len(participants) * ENTRY_FEE
+                    winner_uname, winner_ticket, prize, winner_uid = result
+                    bank = paid_count * ENTRY_FEE
                     await conn.execute(
                         """INSERT INTO draw_history
                            (round_number, participants_count, total_bank,
                             winner_username, winner_ticket, winner_prize,
-                            commission, target_block, block_hash)
-                           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)""",
+                            commission, target_block, block_hash, winner_telegram_id)
+                           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
                         round_number, len(participants), bank,
                         winner_uname, winner_ticket, prize,
-                        bank * 0.10, target_block, "see channel post",
+                        bank * 0.10, target_block, "see channel post", winner_uid,
                     )
                     await conn.execute("DELETE FROM participants")
                     log.info("🏆 Draw #%d done — winner @%s ticket #%d",
                              round_number, winner_uname, winner_ticket)
+
+                    if winner_uid:
+                        await notify_winner(winner_uid, round_number, winner_ticket, prize)
                 else:
                     log.warning("⚠️  Draw #%d failed — participants kept", round_number)
         except Exception as exc:
@@ -887,7 +1348,12 @@ async def cmd_start(message: Message) -> None:
     source, medium, campaign, invited_by = "direct", "direct", "direct", None
     if args.startswith("ref_"):
         parts = args.split("_")
-        if len(parts) >= 3:
+        if len(parts) == 2 and parts[1].isdigit():
+            # personal referral link: ref_<telegram_id> (from 🔗 Invite)
+            ref_uid = int(parts[1])
+            if ref_uid != uid:
+                source, medium, campaign, invited_by = "referral", "friend", "direct", ref_uid
+        elif len(parts) >= 3:
             source, campaign, medium = parts[1], parts[2], "post"
             if len(parts) > 3 and parts[3].isdigit():
                 invited_by = int(parts[3])
@@ -940,19 +1406,43 @@ async def handle_participate(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
     async with db_pool.acquire() as conn:
+        if await conn.fetchval("SELECT 1 FROM participants WHERE telegram_id=$1", uid):
+            await message.answer(t("txid_already_in", lang))
+            return
         count = await conn.fetchval("SELECT COUNT(*) FROM participants")
-    
+        if count >= PARTICIPANT_LIMIT:
+            await message.answer(t("round_full", lang, limit=PARTICIPANT_LIMIT))
+            return
+
+        amount = await conn.fetchval(
+            "SELECT amount FROM pending_payments WHERE telegram_id=$1", uid
+        )
+        if amount is None:
+            amount = await _generate_unique_amount(conn)
+            await conn.execute(
+                "INSERT INTO pending_payments (telegram_id, amount) VALUES ($1,$2) "
+                "ON CONFLICT (telegram_id) DO UPDATE SET amount=$2, created_at=NOW()",
+                uid, amount,
+            )
+
     # Первое сообщение — инструкция (без адреса)
     await message.answer(
         t("participate_info", lang,
-          fee=ENTRY_FEE, wallet=WALLET_ADDRESS,
+          fee=f"{amount:.6f}", wallet=WALLET_ADDRESS,
           count=count, limit=PARTICIPANT_LIMIT)
     )
-    
+
     # Второе сообщение — ТОЛЬКО адрес кошелька (легко копировать)
     await message.answer(
         f"`{WALLET_ADDRESS}`\n\n"
         f"👆 Нажми на адрес, чтобы скопировать",
+        parse_mode="MarkdownV2"
+    )
+
+    # Третье сообщение — ТОЛЬКО точная сумма (легко копировать)
+    await message.answer(
+        f"`{amount:.6f}` USDT\n\n"
+        f"👆 Именно эта сумма — для автоматического распознавания платежа",
         parse_mode="MarkdownV2"
     )
 
@@ -963,13 +1453,19 @@ async def handle_bank(message: Message) -> None:
     uid  = message.from_user.id
     lang = await get_lang(uid)
     async with db_pool.acquire() as conn:
-        count = await conn.fetchval("SELECT COUNT(*) FROM participants")
-    bank  = count * ENTRY_FEE
+        count, paid = await get_pool_counts(conn)
+        joined_at = [
+            r["created_at"] for r in
+            await conn.fetch("SELECT created_at FROM participants ORDER BY created_at")
+        ]
+    bank = paid * ENTRY_FEE
     await message.answer(
         t("bank_info", lang,
           count=count, limit=PARTICIPANT_LIMIT,
+          bar=render_bar(count, PARTICIPANT_LIMIT),
           bank=bank, prize=bank * 0.90,
-          slots=max(PARTICIPANT_LIMIT - count, 0)),
+          slots=max(PARTICIPANT_LIMIT - count, 0),
+          eta=format_eta(count, PARTICIPANT_LIMIT, joined_at, lang)),
         parse_mode=None
     )
 
@@ -1075,6 +1571,112 @@ async def handle_weekly(message: Message) -> None:
     await message.answer(text, parse_mode=None)
 
 
+# ── 👤 Profile ────────────────────────────────────────────────
+@dp.message(F.text.in_({T["btn_profile"]["en"], T["btn_profile"]["ru"]}))
+@dp.message(Command("profile"))
+async def handle_profile(message: Message) -> None:
+    uid  = message.from_user.id
+    lang = await get_lang(uid)
+    async with db_pool.acquire() as conn:
+        joined = await conn.fetchval(
+            "SELECT COUNT(*) FROM transactions WHERE user_id=$1", uid
+        )
+        spent = await conn.fetchval(
+            "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE user_id=$1", uid
+        )
+        wins = await conn.fetchval(
+            "SELECT COUNT(*) FROM draw_history WHERE winner_telegram_id=$1", uid
+        )
+        winnings = await conn.fetchval(
+            "SELECT COALESCE(SUM(winner_prize), 0) FROM draw_history WHERE winner_telegram_id=$1",
+            uid,
+        )
+        user_row = await conn.fetchrow(
+            "SELECT referral_count, free_tickets FROM users WHERE telegram_id=$1", uid
+        )
+    await message.answer(
+        t("profile_info", lang,
+          joined=joined, wins=wins, winnings=float(winnings), spent=float(spent),
+          referrals=user_row["referral_count"] if user_row else 0,
+          free=user_row["free_tickets"] if user_row else 0),
+    )
+
+
+# ── 🔗 Invite ─────────────────────────────────────────────────
+@dp.message(F.text.in_({T["btn_invite"]["en"], T["btn_invite"]["ru"]}))
+async def handle_invite(message: Message) -> None:
+    uid  = message.from_user.id
+    lang = await get_lang(uid)
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT referral_count, free_tickets FROM users WHERE telegram_id=$1", uid
+        )
+    bot_me = await bot.get_me()
+    link = f"https://t.me/{bot_me.username}?start=ref_{uid}"
+    await message.answer(
+        t("invite_info", lang,
+          link=link,
+          count=row["referral_count"] if row else 0,
+          free=row["free_tickets"] if row else 0,
+          goal=REFERRALS_PER_FREE_TICKET),
+    )
+
+
+# ── /free_ticket ──────────────────────────────────────────────
+@dp.message(Command("free_ticket"))
+async def cmd_free_ticket(message: Message) -> None:
+    uid   = message.from_user.id
+    lang  = await get_lang(uid)
+    uname = message.from_user.username or f"user_{uid}"
+    async with db_pool.acquire() as conn:
+        credits = await conn.fetchval("SELECT free_tickets FROM users WHERE telegram_id=$1", uid)
+        if not credits:
+            await message.answer(t("free_ticket_none", lang))
+            return
+        if await conn.fetchval("SELECT 1 FROM participants WHERE telegram_id=$1", uid):
+            await message.answer(t("txid_already_in", lang))
+            return
+        count, paid = await get_pool_counts(conn)
+        if count >= PARTICIPANT_LIMIT:
+            await message.answer(t("round_full", lang, limit=PARTICIPANT_LIMIT))
+            return
+        ticket = (await conn.fetchval(
+            "SELECT COALESCE(MAX(ticket_number), 0) FROM participants"
+        )) + 1
+        try:
+            await conn.execute(
+                "UPDATE users SET free_tickets = free_tickets - 1 WHERE telegram_id=$1", uid
+            )
+            await conn.execute(
+                "INSERT INTO participants (ticket_number, telegram_id, username, is_free)"
+                " VALUES ($1,$2,$3,TRUE)",
+                ticket, uid, f"@{uname}",
+            )
+            # amount=0 synthetic record, kept only so /profile can count this
+            # round towards "rounds joined" — never matched by payment logic
+            # (real TXIDs always start with 0x).
+            await conn.execute(
+                "INSERT INTO transactions (txid, user_id, username, amount) VALUES ($1,$2,$3,0)",
+                f"free_{uid}_{ticket}_{int(time.time())}", uid, uname,
+            )
+            new_count = count + 1
+        except asyncpg.UniqueViolationError:
+            await message.answer(t("txid_already_in", lang))
+            return
+
+    # a free ticket is an extra shot at winning — it does not add real USDT
+    # to the payable bank, so the bank shown here is unchanged (paid-only).
+    await message.answer(
+        t("free_ticket_used", lang,
+          ticket=ticket, bank=paid * ENTRY_FEE, count=new_count)
+    )
+    log.info("🎁 Free ticket #%d issued to @%s (pool %d/%d)",
+             ticket, uname, new_count, PARTICIPANT_LIMIT)
+
+    if new_count >= PARTICIPANT_LIMIT and not draw_lock.locked():
+        asyncio.create_task(run_full_draw())
+
+
 # ══════════════════════════════════════════════════════════════
 #  TXID HANDLER  — fires background task, returns immediately
 # ══════════════════════════════════════════════════════════════
@@ -1149,7 +1751,7 @@ async def cmd_add(message: Message) -> None:
 @admin_only
 async def cmd_reset_db(message: Message) -> None:
     async with db_pool.acquire() as conn:
-        for tbl in ("participants", "transactions", "draw_history", "referral_sources"):
+        for tbl in ("participants", "transactions", "draw_history", "referral_sources", "pending_payments"):
             await conn.execute(f"DELETE FROM {tbl}")
     await message.answer(t("admin_reset", "en"))
 
@@ -1266,6 +1868,13 @@ async def cmd_sources(message: Message) -> None:
 #  FASTAPI + WEBHOOK
 # ══════════════════════════════════════════════════════════════
 app = FastAPI(title="Crypto Fortuna Bot")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://cryptofortuna.online", "https://www.cryptofortuna.online"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+app.mount("/app", StaticFiles(directory="static", html=True), name="webapp")
 
 
 @app.post(f"/webhook/{BOT_TOKEN}")
@@ -1284,6 +1893,53 @@ async def telegram_webhook(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok", "ts": time.time()}
+
+
+@app.get("/stats")
+async def public_stats():
+    """Public read-only stats for the landing page live counters."""
+    async with db_pool.acquire() as conn:
+        current_count, current_paid = await get_pool_counts(conn)
+        agg = await conn.fetchrow("""
+            SELECT COUNT(*)                            AS draws,
+                   COALESCE(SUM(participants_count), 0) AS participants,
+                   COALESCE(SUM(commission), 0)         AS commission
+            FROM draw_history
+        """)
+    return {
+        "current_participants": current_count,
+        "current_limit": PARTICIPANT_LIMIT,
+        "current_bank": current_paid * ENTRY_FEE,
+        "total_draws": agg["draws"],
+        "total_participants": agg["participants"] + current_count,
+        "total_commission": float(agg["commission"]),
+        "entry_fee": ENTRY_FEE,
+        "wallet_address": WALLET_ADDRESS,
+    }
+
+
+@app.get("/api/history")
+async def public_history():
+    """Last 20 completed draws — real, verifiable results for the website."""
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT round_number, draw_date, participants_count, total_bank,
+                   winner_username, winner_ticket, winner_prize, target_block
+            FROM draw_history ORDER BY draw_date DESC LIMIT 20
+        """)
+    return [
+        {
+            "round": r["round_number"],
+            "date": r["draw_date"].isoformat() if r["draw_date"] else None,
+            "participants": r["participants_count"],
+            "bank": r["total_bank"],
+            "winner": r["winner_username"],
+            "ticket": r["winner_ticket"],
+            "prize": r["winner_prize"],
+            "block": r["target_block"],
+        }
+        for r in rows
+    ]
 
 
 @app.get("/")
@@ -1309,6 +1965,8 @@ async def on_startup() -> None:
         log.warning("⚠️  RENDER_EXTERNAL_URL not set — webhook not registered")
 
     asyncio.create_task(keep_db_alive())
+    asyncio.create_task(payment_watcher())
+    asyncio.create_task(abandoned_payment_reminder())
     log.info("✅ Bot v2.1 started")
 
 
