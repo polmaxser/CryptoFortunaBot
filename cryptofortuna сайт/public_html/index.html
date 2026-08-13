@@ -14,7 +14,9 @@
 <!-- Open Graph (для соцсетей) -->
 <meta property="og:title" content="Crypto Fortuna Club">
 <meta property="og:description" content="5 USDT — твой шанс в прозрачном блокчейн-сообществе">
-<meta property="og:image" content="https://cryptofortuna.online/logo.png">
+<meta property="og:image" content="https://cryptofortunabot.onrender.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:url" content="https://cryptofortuna.online">
 <meta property="og:type" content="website">
 
@@ -22,7 +24,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Crypto Fortuna Club">
 <meta name="twitter:description" content="5 USDT — прозрачное сообщество на BSC">
-<meta name="twitter:image" content="https://cryptofortuna.online/logo.png">
+<meta name="twitter:image" content="https://cryptofortunabot.onrender.com/og-image.png">
 <meta name="description" content="Join Crypto Fortuna Club — a private community with transparent blockchain-based fund distribution. 5 USDT entry, 90% reward pool, BSC verified.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -331,6 +333,20 @@
     .history-row { grid-template-columns: 1fr; text-align: left; gap: 6px; }
     .history-prize { text-align: left; }
   }
+
+  /* LEADERBOARD */
+  .leader-list { margin-top: 48px; display: grid; gap: 10px; max-width: 640px; margin-left: auto; margin-right: auto; }
+  .leader-row {
+    display: flex; align-items: center; gap: 18px;
+    padding: 14px 22px; border: 1px solid rgba(255,208,96,0.1); border-radius: 10px;
+    background: rgba(255,208,96,0.02); transition: all 0.25s;
+  }
+  .leader-row:hover { background: rgba(255,208,96,0.06); border-color: rgba(255,208,96,0.2); }
+  .leader-rank { font-family: 'Cinzel', serif; font-size: 1.3rem; width: 36px; flex-shrink: 0; text-align: center; }
+  .leader-name { flex: 1; font-size: 0.95rem; color: var(--text-main); font-weight: 600; }
+  .leader-wins { font-size: 0.78rem; color: var(--text-muted); }
+  .leader-total { font-family: 'Cinzel', serif; font-size: 0.95rem; color: var(--gold); white-space: nowrap; }
+  .leader-empty { padding: 40px 24px; text-align: center; color: var(--text-muted); font-size: 0.92rem; }
 
   /* FAQ */
   .faq-list { margin-top: 48px; max-width: 760px; margin-left: auto; margin-right: auto; }
@@ -758,6 +774,20 @@
     </div>
     <div class="history-list reveal" id="history-list">
       <div class="history-empty" data-en="Loading round history…" data-ru="Загружаю историю раундов…">Loading round history…</div>
+    </div>
+  </div>
+</section>
+
+<!-- LEADERBOARD -->
+<section id="leaderboard">
+  <div class="section-inner">
+    <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
+      <span class="section-label" data-en="Hall of Fame" data-ru="Зал славы">Hall of Fame</span>
+      <h2 class="section-title" data-en="Top Winners" data-ru="Топ победителей">Top Winners</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Members with the most confirmed wins, all-time." data-ru="Участники с наибольшим числом подтверждённых побед за всё время.">Members with the most confirmed wins, all-time.</p>
+    </div>
+    <div class="leader-list reveal" id="leaderboard-list">
+      <div class="leader-empty" data-en="Loading leaderboard…" data-ru="Загружаю лидерборд…">Loading leaderboard…</div>
     </div>
   </div>
 </section>

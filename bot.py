@@ -20,13 +20,14 @@ FIX LIST vs v2.0:
 
 import os
 import re
+import io
 import random
 import logging
 import asyncio
 import hashlib
 import time
 from datetime import datetime, timezone
-from functools import wraps
+from functools import wraps, lru_cache
 from urllib.parse import quote
 
 import aiohttp
@@ -35,6 +36,8 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from PIL import Image, ImageDraw, ImageFont
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import (
@@ -408,6 +411,16 @@ T: dict[str, dict[str, str]] = {
     "weekly_empty": {"en": "\n📭 No draws this week yet\\.",
                      "ru": "\n📭 Розыгрышей за эту неделю ещё не было\\."},
 
+    # ── Leaderboard ───────────────────────────────────────────
+    "leaderboard_header": {"en": "🏅 *All-Time Top Winners*\n\n",
+                           "ru": "🏅 *Топ победителей за всё время*\n\n"},
+    "leaderboard_row": {
+        "en": "{medal} {winner} — *{wins}* win\\(s\\), {total:.2f} USDT total\n",
+        "ru": "{medal} {winner} — *{wins}* побед, всего {total:.2f} USDT\n",
+    },
+    "leaderboard_empty": {"en": "📭 No draws have taken place yet\\.",
+                          "ru": "📭 Розыгрышей пока не было\\."},
+
     # ── Language ──────────────────────────────────────────────
     "lang_now_en": {"en": "🌐 Language set to *English*\\.",
                     "ru": "🌐 Language set to *English*\\."},
@@ -522,14 +535,24 @@ T: dict[str, dict[str, str]] = {
             "👋 *Still there?*\n\n"
             "You started joining the current round but we haven't seen your payment yet\\.\n\n"
             "💎 Send *exactly {fee} USDT* \\(BEP\\-20, BSC\\) to:\n`{wallet}`\n\n"
-            "The bot will pick it up automatically \\— no rush, your spot is still open\\."
+            "The bot will pick it up automatically \\— no rush, your spot is still open\\.\n\n"
+            "🔕 Don't want these reminders? Send /reminders to turn them off\\."
         ),
         "ru": (
             "👋 *Всё ещё здесь?*\n\n"
             "Ты начал вступление в текущий раунд, но мы пока не увидели оплату\\.\n\n"
             "💎 Отправь *ровно {fee} USDT* \\(BEP\\-20, BSC\\) на адрес:\n`{wallet}`\n\n"
-            "Бот подхватит платёж автоматически \\— место всё ещё за тобой\\."
+            "Бот подхватит платёж автоматически \\— место всё ещё за тобой\\.\n\n"
+            "🔕 Не хочешь получать эти напоминания? Отправь /reminders, чтобы отключить\\."
         ),
+    },
+    "reminders_on": {
+        "en": "🔔 Payment reminders are now *ON*\\.",
+        "ru": "🔔 Напоминания об оплате *включены*\\.",
+    },
+    "reminders_off": {
+        "en": "🔕 Payment reminders are now *OFF*\\. Send /reminders again to turn them back on\\.",
+        "ru": "🔕 Напоминания об оплате *отключены*\\. Отправь /reminders ещё раз, чтобы включить снова\\.",
     },
     "profile_info": {
         "en": (
@@ -638,6 +661,7 @@ ALTER TABLE participants ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT FALSE;
 ALTER TABLE draw_history ADD COLUMN IF NOT EXISTS winner_telegram_id BIGINT;
 ALTER TABLE pending_payments ADD COLUMN IF NOT EXISTS reminded_at TIMESTAMPTZ;
 ALTER TABLE pending_payments ALTER COLUMN amount TYPE NUMERIC(20,8);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reminders_enabled BOOLEAN DEFAULT TRUE;
 """
 
 
@@ -704,6 +728,20 @@ async def get_pool_counts(conn) -> tuple[int, int]:
     total = await conn.fetchval("SELECT COUNT(*) FROM participants")
     paid = await conn.fetchval("SELECT COUNT(*) FROM participants WHERE is_free = FALSE")
     return total, paid
+
+
+async def get_leaderboard_rows(conn, limit: int = 10):
+    """All-time top winners by number of wins, tie-broken by total won."""
+    return await conn.fetch(
+        """
+        SELECT winner_username, COUNT(*) AS wins, COALESCE(SUM(winner_prize), 0) AS total
+        FROM draw_history
+        GROUP BY winner_username
+        ORDER BY wins DESC, total DESC
+        LIMIT $1
+        """,
+        limit,
+    )
 
 
 async def grant_referral_reward(conn, referred_uid: int) -> None:
@@ -1067,9 +1105,11 @@ async def abandoned_payment_reminder() -> None:
         try:
             async with db_pool.acquire() as conn:
                 rows = await conn.fetch(
-                    "SELECT telegram_id, amount FROM pending_payments "
-                    "WHERE reminded_at IS NULL "
-                    "AND created_at < NOW() - ($1 || ' hours')::interval",
+                    "SELECT pp.telegram_id, pp.amount FROM pending_payments pp "
+                    "JOIN users u ON u.telegram_id = pp.telegram_id "
+                    "WHERE pp.reminded_at IS NULL "
+                    "AND pp.created_at < NOW() - ($1 || ' hours')::interval "
+                    "AND COALESCE(u.reminders_enabled, TRUE) = TRUE",
                     str(PAYMENT_REMINDER_HOURS),
                 )
                 for row in rows:
@@ -1182,6 +1222,28 @@ async def publish_draw_announce(
         await bot.send_message(CHANNEL_ID, msg, disable_web_page_preview=True, parse_mode=None)
 
 
+async def countdown_ticker(chat_id, total_seconds: int, interval: int = 20) -> None:
+    """Posts a single message that counts down to the draw, editing it every
+    `interval` seconds instead of leaving participants staring at nothing."""
+    remaining = total_seconds
+    mm, ss = divmod(remaining, 60)
+    msg = await bot.send_message(chat_id, f"⏳ {mm}:{ss:02d}")
+    while remaining > 0:
+        await asyncio.sleep(min(interval, remaining))
+        remaining -= interval
+        if remaining <= 0:
+            break
+        mm, ss = divmod(remaining, 60)
+        try:
+            await bot.edit_message_text(f"⏳ {mm}:{ss:02d}", chat_id, msg.message_id)
+        except Exception:
+            pass
+    try:
+        await bot.delete_message(chat_id, msg.message_id)
+    except Exception:
+        pass
+
+
 async def execute_draw(
     round_number: int, participants: list[str], target_block: int, paid_count: int,
     ticket_to_uid: dict[int, int],
@@ -1292,7 +1354,7 @@ async def run_full_draw() -> None:
 
             target_block = current_block + 20
             await publish_draw_announce(round_number, participants, target_block)
-            await asyncio.sleep(120)
+            await countdown_ticker(CHANNEL_ID, 120)
 
             result = await execute_draw(
                 round_number, participants, target_block, paid_count, ticket_to_uid
@@ -1387,6 +1449,22 @@ async def cmd_cancel(message: Message) -> None:
         await message.answer(t("txid_cancelled", lang))
     else:
         await message.answer(t("txid_nothing_to_cancel", lang))
+
+
+# ── /reminders ────────────────────────────────────────────────
+@dp.message(Command("reminders"))
+async def cmd_toggle_reminders(message: Message) -> None:
+    uid  = message.from_user.id
+    lang = await get_lang(uid)
+    async with db_pool.acquire() as conn:
+        current = await conn.fetchval(
+            "SELECT reminders_enabled FROM users WHERE telegram_id=$1", uid
+        )
+        new_state = not (current if current is not None else True)
+        await conn.execute(
+            "UPDATE users SET reminders_enabled=$2 WHERE telegram_id=$1", uid, new_state
+        )
+    await message.answer(t("reminders_on" if new_state else "reminders_off", lang))
 
 
 # ── Language toggle ───────────────────────────────────────────
@@ -1603,6 +1681,28 @@ async def handle_profile(message: Message) -> None:
     )
 
 
+# ── /top ──────────────────────────────────────────────────────
+MEDALS = ["🥇", "🥈", "🥉"]
+
+
+@dp.message(Command("top"))
+async def cmd_top(message: Message) -> None:
+    uid  = message.from_user.id
+    lang = await get_lang(uid)
+    async with db_pool.acquire() as conn:
+        rows = await get_leaderboard_rows(conn, limit=10)
+    if not rows:
+        await message.answer(t("leaderboard_empty", lang), parse_mode=None)
+        return
+    text = t("leaderboard_header", lang)
+    for i, row in enumerate(rows):
+        medal = MEDALS[i] if i < len(MEDALS) else f"{i + 1}️⃣"
+        text += t("leaderboard_row", lang,
+                  medal=medal, winner=row["winner_username"],
+                  wins=row["wins"], total=float(row["total"]))
+    await message.answer(text, parse_mode=None)
+
+
 # ── 🔗 Invite ─────────────────────────────────────────────────
 @dp.message(F.text.in_({T["btn_invite"]["en"], T["btn_invite"]["ru"]}))
 async def handle_invite(message: Message) -> None:
@@ -1808,6 +1908,27 @@ async def cmd_announce(message: Message) -> None:
         )
     await message.answer(t("admin_published", "en"))
 
+    # Also DM everyone who has ever started the bot — channel subscribers
+    # only reach people already following; this reaches lapsed/inactive users too.
+    async with db_pool.acquire() as conn:
+        user_rows = await conn.fetch("SELECT telegram_id, lang FROM users")
+    sent, failed = 0, 0
+    for u in user_rows:
+        try:
+            await bot.send_message(
+                u["telegram_id"],
+                t("announce_post", u["lang"] or "en",
+                  bank=bank, count=count, limit=PARTICIPANT_LIMIT, fee=ENTRY_FEE,
+                  last_winner=last_winner, last_ticket=last_ticket, last_prize=last_prize),
+                disable_web_page_preview=True,
+                parse_mode=None,
+            )
+            sent += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05)
+    await message.answer(f"📨 DM broadcast: {sent} sent, {failed} failed (blocked/deleted).")
+
 
 @dp.message(Command("start_draw"))
 @admin_only
@@ -1919,6 +2040,17 @@ async def public_stats():
     }
 
 
+@app.get("/api/leaderboard")
+async def public_leaderboard():
+    """All-time top winners — real, verifiable results for the website."""
+    async with db_pool.acquire() as conn:
+        rows = await get_leaderboard_rows(conn, limit=10)
+    return [
+        {"winner": r["winner_username"], "wins": r["wins"], "total": float(r["total"])}
+        for r in rows
+    ]
+
+
 @app.get("/api/history")
 async def public_history():
     """Last 20 completed draws — real, verifiable results for the website."""
@@ -1941,6 +2073,56 @@ async def public_history():
         }
         for r in rows
     ]
+
+
+_OG_FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "fonts", "DejaVuSans.ttf")
+
+
+@lru_cache(maxsize=8)
+def _og_font(size: int) -> ImageFont.FreeTypeFont:
+    """Cyrillic-capable font, cached per size (PIL's built-in default font has no Cyrillic glyphs)."""
+    return ImageFont.truetype(_OG_FONT_PATH, size)
+
+
+@app.get("/og-image.png")
+async def og_image():
+    """Social-share preview image with live round numbers baked in."""
+    async with db_pool.acquire() as conn:
+        count, paid = await get_pool_counts(conn)
+        draws = await conn.fetchval("SELECT COUNT(*) FROM draw_history")
+    bank = paid * ENTRY_FEE
+
+    W, H = 1200, 630
+    BG, GOLD, MUTED, TEXT = (8, 8, 16), (255, 208, 96), (154, 138, 106), (245, 234, 200)
+    img = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, W, 10], fill=GOLD)
+
+    f_title = _og_font(76)
+    f_sub = _og_font(30)
+    f_stat = _og_font(46)
+    f_label = _og_font(24)
+
+    draw.text((70, 90), "CRYPTO FORTUNA", font=f_title, fill=GOLD)
+    draw.text((70, 190), "Прозрачное блокчейн-сообщество · BSC", font=f_sub, fill=MUTED)
+
+    stats = [
+        (f"{count}/{PARTICIPANT_LIMIT}", "Участников в раунде"),
+        (f"{bank} USDT", "Банк раунда"),
+        (f"{draws}", "Розыгрышей проведено"),
+    ]
+    x = 70
+    for value, label in stats:
+        draw.text((x, 330), value, font=f_stat, fill=TEXT)
+        draw.text((x, 400), label, font=f_label, fill=MUTED)
+        x += 380
+
+    draw.text((70, 510), "5 USDT вход · 90% — победителю · хэш блока BSC", font=f_sub, fill=GOLD)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return Response(content=buf.getvalue(), media_type="image/png",
+                     headers={"Cache-Control": "public, max-age=300"})
 
 
 @app.get("/")

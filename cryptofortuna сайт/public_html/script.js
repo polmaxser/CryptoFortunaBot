@@ -65,8 +65,47 @@ async function loadHistory() {
     }
 }
 
+async function loadLeaderboard() {
+    const list = document.getElementById('leaderboard-list');
+    if (!list) return;
+    const lang = (document.documentElement.lang || 'en').slice(0, 2);
+    const medals = ['🥇', '🥈', '🥉'];
+    const winsWord = lang === 'ru' ? 'побед' : 'wins';
+
+    try {
+        const response = await fetch('https://cryptofortunabot.onrender.com/api/leaderboard');
+        const rows = await response.json();
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            list.innerHTML = '<div class="leader-empty">' +
+                (lang === 'ru' ? 'Розыгрышей пока не было.' : 'No draws have taken place yet.') +
+                '</div>';
+            return;
+        }
+
+        list.innerHTML = rows.map(function (r, i) {
+            const rank = medals[i] || (i + 1) + '.';
+            return (
+                '<div class="leader-row">' +
+                    '<div class="leader-rank">' + rank + '</div>' +
+                    '<div class="leader-name">' + (r.winner || '—') +
+                        '<div class="leader-wins">' + r.wins + ' ' + winsWord + '</div>' +
+                    '</div>' +
+                    '<div class="leader-total">' + (r.total != null ? r.total.toFixed(2) : '0.00') + ' USDT</div>' +
+                '</div>'
+            );
+        }).join('');
+    } catch (error) {
+        list.innerHTML = '<div class="leader-empty">' +
+            (lang === 'ru' ? 'Лидерборд временно недоступен.' : 'Leaderboard is temporarily unavailable.') +
+            '</div>';
+    }
+}
+
 loadStats();
 loadHistory();
-// Обновляем статистику каждые 30 секунд, историю — раз в минуту
+loadLeaderboard();
+// Обновляем статистику каждые 30 секунд, историю и лидерборд — раз в минуту
 setInterval(loadStats, 30000);
 setInterval(loadHistory, 60000);
+setInterval(loadLeaderboard, 60000);
