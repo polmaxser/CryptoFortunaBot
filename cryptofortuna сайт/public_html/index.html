@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crypto Fortuna Club — Прозрачное блокчейн-сообщество | 5 USDT</title>
+<link rel="canonical" href="https://cryptofortuna.online/">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#05060b">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="shortcut icon" href="/favicon.ico">
-<meta name="description" content="Прозрачное блокчейн-сообщество. Взнос 5 USDT, 90% банка — победителю. Алгоритм на BSC, всё проверяемо.">
-<meta name="keywords" content="крипта, криптовалюта, блокчейн, BSC, USDT, победитель, крипто фортуна, криптосообщество, крипто группа, сообщество криптораспределения, частное сообщество криптолюбителей, клуб крипто, закрытый клуб криптовалюты, элитный клуб криптолюбителей, распределение криптовалюты, поощрение победителя">
+<meta name="description" content="Crypto Fortuna Club — прозрачное блокчейн-сообщество на BSC. Взнос 5 USDT, 90% банка — участнику, выбранному алгоритмом. Победитель определяется хэшем блока BSC — проверяемо на BscScan.">
+<meta name="keywords" content="crypto fortuna, крипто фортуна, блокчейн сообщество, BSC, USDT BEP-20, прозрачное распределение, хэш блока, bscscan">
 <meta name="author" content="Crypto Fortuna Club">
 <meta name="robots" content="index, follow">
 
@@ -17,15 +20,16 @@
 <meta property="og:image" content="https://cryptofortunabot.onrender.com/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:url" content="https://cryptofortuna.online">
+<meta property="og:url" content="https://cryptofortuna.online/">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:locale:alternate" content="en_US">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Crypto Fortuna Club">
 <meta name="twitter:description" content="5 USDT — прозрачное сообщество на BSC">
 <meta name="twitter:image" content="https://cryptofortunabot.onrender.com/og-image.png">
-<meta name="description" content="Join Crypto Fortuna Club — a private community with transparent blockchain-based fund distribution. 5 USDT entry, 90% reward pool, BSC verified.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -488,6 +492,69 @@
 <noscript><div><img src="https://mc.yandex.ru/watch/109595723" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
 <!-- /Yandex.Metrika counter -->
 
+<!-- Structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Crypto Fortuna Club",
+  "url": "https://cryptofortuna.online/",
+  "logo": "https://cryptofortuna.online/images/logo-512.png",
+  "sameAs": [
+    "https://t.me/realcryptofortuna",
+    "https://t.me/RealCryptoFortunaBot"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Какую сеть и монету отправлять?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Только USDT в сети BSC (BEP-20). Отправка в любой другой сети (TRC-20, ERC-20 и т.д.) не будет обнаружена ботом и не может быть возвращена автоматически."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Почему бот не подтверждает мой платёж?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "При нажатии «Участвовать» бот выдаёт уникальную точную сумму — если отправить её без округления, платёж определяется автоматически, обычно за ~30 секунд. Если сумма отличалась или прошло уже несколько минут, вставь хэш транзакции (TXID) прямо в чат для ручной проверки."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Как на самом деле выбирается победитель?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Берётся хэш заранее объявленного будущего блока BSC и вычисляется хэш % число участников. Никто — включая клуб — не может предсказать или повлиять на хэш блока до его добычи, а расчёт может проверить любой на BscScan."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Что если раунд долго не заполняется?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ничего не пропадёт — твой билет и взнос сохраняются до заполнения раунда и розыгрыша. Актуальный прогресс всегда можно посмотреть через «Банк» в боте."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Можно ли получить больше одного билета?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Один платный билет на человека за раунд. Дополнительные бесплатные билеты можно заработать, приглашая друзей — через раздел «Пригласить» в боте."
+      }
+    }
+  ]
+}
+</script>
+
 </head>
 <body>
 
@@ -496,7 +563,7 @@
 <!-- NAV -->
 <nav id="main-nav">
   <a href="#" class="nav-left">
-    <img src="logo.png" alt="Crypto Fortuna Club">
+    <img src="images/logo-96.png" alt="Crypto Fortuna Club" width="42" height="42">
     <div class="nav-logo-text">
       Crypto Fortuna
       <span>Club</span>
@@ -504,12 +571,12 @@
   </a>
   <div class="nav-right">
     <div class="lang-switcher">
-      <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
-      <button class="lang-btn" id="btn-ru" onclick="setLang('ru')">RU</button>
+      <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn active" id="btn-ru" onclick="setLang('ru')">RU</button>
     </div>
     <a href="https://t.me/RealCryptoFortunaBot" target="_blank" rel="noopener" class="nav-cta">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
-      <span class="cta-text" data-en="Join the Club" data-ru="Вступить">Join the Club</span>
+      <span class="cta-text" data-en="Join the Club" data-ru="Вступить">Вступить</span>
     </a>
   </div>
 </nav>
@@ -517,38 +584,38 @@
 <!-- HERO -->
 <section class="hero">
   <div class="hero-bg-glow"></div>
-  <div class="hero-badge" data-en="Private Community · BSC Blockchain" data-ru="Частное сообщество · BSC Блокчейн">Private Community · BSC Blockchain</div>
-  <img src="logo.png" alt="Crypto Fortuna Club" class="hero-logo">
+  <div class="hero-badge" data-en="Private Community · BSC Blockchain" data-ru="Частное сообщество · BSC Блокчейн">Частное сообщество · BSC Блокчейн</div>
+  <img src="images/logo-300.png" alt="Crypto Fortuna Club" class="hero-logo" width="150" height="150">
   <h1 class="hero-title">CRYPTO<br>FORTUNA</h1>
   <p class="hero-subtitle-brand">— Club —</p>
   <p class="hero-tagline" data-en="A private community where every distribution is transparent, verifiable on-chain, and governed by a fair open algorithm." data-ru="Частное сообщество, где каждое распределение прозрачно, проверяемо в блокчейне и управляется открытым честным алгоритмом.">
-    A private community where every distribution is transparent, verifiable on-chain, and governed by a fair open algorithm.
+    Частное сообщество, где каждое распределение прозрачно, проверяемо в блокчейне и управляется открытым честным алгоритмом.
   </p>
   <div class="hero-actions">
     <a href="https://t.me/RealCryptoFortunaBot" target="_blank" rel="noopener" class="btn-primary">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
-      <span data-en="Join via @RealCryptoFortunaBot" data-ru="Вступить через @RealCryptoFortunaBot">Join via @RealCryptoFortunaBot</span>
+      <span data-en="Join via @RealCryptoFortunaBot" data-ru="Вступить через @RealCryptoFortunaBot">Вступить через @RealCryptoFortunaBot</span>
     </a>
     <a href="#how" class="btn-secondary">
-      <span data-en="How it works ↓" data-ru="Как это работает ↓">How it works ↓</span>
+      <span data-en="How it works ↓" data-ru="Как это работает ↓">Как это работает ↓</span>
     </a>
   </div>
   <div class="hero-stats">
     <div class="stat-item">
       <div class="stat-value">5 USDT</div>
-      <div class="stat-label" data-en="Entry Contribution" data-ru="Взнос в фонд">Entry Contribution</div>
+      <div class="stat-label" data-en="Entry Contribution" data-ru="Взнос в фонд">Взнос в фонд</div>
     </div>
     <div class="stat-item">
       <div class="stat-value">90%</div>
-      <div class="stat-label" data-en="Reward Pool" data-ru="Призовой фонд">Reward Pool</div>
+      <div class="stat-label" data-en="Reward Pool" data-ru="Призовой фонд">Призовой фонд</div>
     </div>
     <div class="stat-item">
       <div class="stat-value">BSC</div>
-      <div class="stat-label" data-en="On-Chain Verified" data-ru="Верификация в сети">On-Chain Verified</div>
+      <div class="stat-label" data-en="On-Chain Verified" data-ru="Верификация в сети">Верификация в сети</div>
     </div>
     <div class="stat-item">
       <div class="stat-value">100%</div>
-      <div class="stat-label" data-en="Transparent" data-ru="Прозрачность">Transparent</div>
+      <div class="stat-label" data-en="Transparent" data-ru="Прозрачность">Прозрачность</div>
     </div>
   </div>
 </section>
@@ -556,24 +623,24 @@
 <!-- LIVE STATS -->
 <section id="live">
   <div class="section-inner" style="padding-top:56px;padding-bottom:56px;text-align:center;">
-    <span class="section-label" data-en="Live" data-ru="Онлайн">Live</span>
-    <h2 class="section-title" style="font-size:clamp(1.4rem,3vw,1.8rem);" data-en="Current Round" data-ru="Текущий раунд">Current Round</h2>
+    <span class="section-label" data-en="Live" data-ru="Онлайн">Онлайн</span>
+    <h2 class="section-title" style="font-size:clamp(1.4rem,3vw,1.8rem);" data-en="Current Round" data-ru="Текущий раунд">Текущий раунд</h2>
     <div class="hero-stats" style="margin:32px auto 0;max-width:680px;">
       <div class="stat-item">
         <div class="stat-value"><span id="live-participants">—</span>/<span id="live-limit">—</span></div>
-        <div class="stat-label" data-en="Participants" data-ru="Участников">Participants</div>
+        <div class="stat-label" data-en="Participants" data-ru="Участников">Участников</div>
       </div>
       <div class="stat-item">
         <div class="stat-value" id="live-bank">— USDT</div>
-        <div class="stat-label" data-en="Round Pool" data-ru="Банк раунда">Round Pool</div>
+        <div class="stat-label" data-en="Round Pool" data-ru="Банк раунда">Банк раунда</div>
       </div>
       <div class="stat-item">
         <div class="stat-value" id="live-paid">— USDT</div>
-        <div class="stat-label" data-en="Paid Out All-Time" data-ru="Выплачено всего">Paid Out All-Time</div>
+        <div class="stat-label" data-en="Paid Out All-Time" data-ru="Выплачено всего">Выплачено всего</div>
       </div>
       <div class="stat-item">
         <div class="stat-value" id="live-draws">—</div>
-        <div class="stat-label" data-en="Draws Completed" data-ru="Розыгрышей проведено">Draws Completed</div>
+        <div class="stat-label" data-en="Draws Completed" data-ru="Розыгрышей проведено">Розыгрышей проведено</div>
       </div>
     </div>
   </div>
@@ -583,36 +650,36 @@
 <section class="how" id="how">
   <div class="section-inner">
     <div class="reveal">
-      <span class="section-label" data-en="Step by Step" data-ru="Шаг за шагом">Step by Step</span>
-      <h2 class="section-title" data-en="How It Works" data-ru="Как это работает">How It Works</h2>
+      <span class="section-label" data-en="Step by Step" data-ru="Шаг за шагом">Шаг за шагом</span>
+      <h2 class="section-title" data-en="How It Works" data-ru="Как это работает">Как это работает</h2>
       <p class="section-body" data-en="Everything runs transparently on the Binance Smart Chain. No hidden mechanics — every step is open and verifiable by anyone." data-ru="Всё работает прозрачно в сети Binance Smart Chain. Никакой скрытой механики — каждый шаг открыт и проверяем любым участником.">
-        Everything runs transparently on the Binance Smart Chain. No hidden mechanics — every step is open and verifiable by anyone.
+        Всё работает прозрачно в сети Binance Smart Chain. Никакой скрытой механики — каждый шаг открыт и проверяем любым участником.
       </p>
     </div>
     <div class="steps-grid reveal">
       <div class="step-card">
         <div class="step-num">01</div>
         <span class="step-icon">🤝</span>
-        <div class="step-title" data-en="Join the Club" data-ru="Вступите в клуб">Join the Club</div>
-        <p class="step-text" data-en="Start the bot <strong>@RealCryptoFortunaBot</strong> on Telegram and make a voluntary membership contribution of <strong>5 USDT</strong> via BSC network." data-ru="Запустите бот <strong>@RealCryptoFortunaBot</strong> в Telegram и внесите добровольный членский взнос <strong>5 USDT</strong> через сеть BSC.">Start the bot <strong>@RealCryptoFortunaBot</strong> on Telegram and make a voluntary membership contribution of <strong>5 USDT</strong> via BSC network.</p>
+        <div class="step-title" data-en="Join the Club" data-ru="Вступите в клуб">Вступите в клуб</div>
+        <p class="step-text" data-en="Start the bot <strong>@RealCryptoFortunaBot</strong> on Telegram and make a voluntary membership contribution of <strong>5 USDT</strong> via BSC network." data-ru="Запустите бот <strong>@RealCryptoFortunaBot</strong> в Telegram и внесите добровольный членский взнос <strong>5 USDT</strong> через сеть BSC.">Запустите бот <strong>@RealCryptoFortunaBot</strong> в Telegram и внесите добровольный членский взнос <strong>5 USDT</strong> через сеть BSC.</p>
       </div>
       <div class="step-card">
         <div class="step-num">02</div>
         <span class="step-icon">💎</span>
-        <div class="step-title" data-en="Fund Forms" data-ru="Формирование фонда">Fund Forms</div>
-        <p class="step-text" data-en="Your contribution enters the community pool. <strong>90%</strong> is reserved for the reward, <strong>10%</strong> covers project upkeep and goes toward charity." data-ru="Ваш взнос поступает в общий фонд сообщества. <strong>90%</strong> предназначено для поощрения, <strong>10%</strong> — на поддержку проекта и благотворительность.">Your contribution enters the community pool. <strong>90%</strong> is reserved for the reward, <strong>10%</strong> covers project upkeep and goes toward charity.</p>
+        <div class="step-title" data-en="Fund Forms" data-ru="Формирование фонда">Формирование фонда</div>
+        <p class="step-text" data-en="Your contribution enters the community pool. <strong>90%</strong> is reserved for the reward, <strong>10%</strong> covers project upkeep and goes toward charity." data-ru="Ваш взнос поступает в общий фонд сообщества. <strong>90%</strong> предназначено для поощрения, <strong>10%</strong> — на поддержку проекта и благотворительность.">Ваш взнос поступает в общий фонд сообщества. <strong>90%</strong> предназначено для поощрения, <strong>10%</strong> — на поддержку проекта и благотворительность.</p>
       </div>
       <div class="step-card">
         <div class="step-num">03</div>
         <span class="step-icon">🔐</span>
-        <div class="step-title" data-en="Fair Selection" data-ru="Честный выбор">Fair Selection</div>
-        <p class="step-text" data-en="A winner is selected via an open BSC block hash algorithm — pre-announced and independently verifiable. <strong>Zero manipulation.</strong>" data-ru="Победитель определяется открытым алгоритмом на основе хэша блока BSC — объявляется заранее и независимо проверяется. <strong>Никаких манипуляций.</strong>">A winner is selected via an open BSC block hash algorithm — pre-announced and independently verifiable. <strong>Zero manipulation.</strong></p>
+        <div class="step-title" data-en="Fair Selection" data-ru="Честный выбор">Честный выбор</div>
+        <p class="step-text" data-en="A winner is selected via an open BSC block hash algorithm — pre-announced and independently verifiable. <strong>Zero manipulation.</strong>" data-ru="Победитель определяется открытым алгоритмом на основе хэша блока BSC — объявляется заранее и независимо проверяется. <strong>Никаких манипуляций.</strong>">Победитель определяется открытым алгоритмом на основе хэша блока BSC — объявляется заранее и независимо проверяется. <strong>Никаких манипуляций.</strong></p>
       </div>
       <div class="step-card">
         <div class="step-num">04</div>
         <span class="step-icon">📢</span>
-        <div class="step-title" data-en="Public Result" data-ru="Публичный результат">Public Result</div>
-        <p class="step-text" data-en="The bot publishes the result with the <strong>exact block reference</strong> so any member can verify the outcome on-chain themselves." data-ru="Бот публикует результат с <strong>точным номером блока</strong>, чтобы любой участник мог самостоятельно проверить итог в блокчейне.">The bot publishes the result with the <strong>exact block reference</strong> so any member can verify the outcome on-chain themselves.</p>
+        <div class="step-title" data-en="Public Result" data-ru="Публичный результат">Публичный результат</div>
+        <p class="step-text" data-en="The bot publishes the result with the <strong>exact block reference</strong> so any member can verify the outcome on-chain themselves." data-ru="Бот публикует результат с <strong>точным номером блока</strong>, чтобы любой участник мог самостоятельно проверить итог в блокчейне.">Бот публикует результат с <strong>точным номером блока</strong>, чтобы любой участник мог самостоятельно проверить итог в блокчейне.</p>
       </div>
     </div>
   </div>
@@ -623,16 +690,16 @@
   <div class="section-inner">
     <div class="algo-inner">
       <div class="reveal">
-        <span class="section-label" data-en="Transparency" data-ru="Прозрачность">Transparency</span>
-        <h2 class="section-title" data-en="The Open Algorithm" data-ru="Открытый алгоритм">The Open Algorithm</h2>
+        <span class="section-label" data-en="Transparency" data-ru="Прозрачность">Прозрачность</span>
+        <h2 class="section-title" data-en="The Open Algorithm" data-ru="Открытый алгоритм">Открытый алгоритм</h2>
         <p class="section-body" data-en="No server-side randomness. No black boxes. The selection formula uses public BSC blockchain data — announced in advance and open to everyone." data-ru="Никакой серверной случайности. Никаких чёрных ящиков. Формула выбора использует публичные данные блокчейна BSC — объявляется заранее и открыта для всех.">
-          No server-side randomness. No black boxes. The selection formula uses public BSC blockchain data — announced in advance and open to everyone.
+          Никакой серверной случайности. Никаких чёрных ящиков. Формула выбора использует публичные данные блокчейна BSC — объявляется заранее и открыта для всех.
         </p>
         <ul class="check-list">
-          <li><span class="icon">✓</span><span data-en="Algorithm published before each round begins" data-ru="Алгоритм публикуется до начала каждого раунда">Algorithm published before each round begins</span></li>
-          <li><span class="icon">✓</span><span data-en="Uses real BSC block hash — impossible to predict or manipulate" data-ru="Использует реальный хэш блока BSC — невозможно предсказать или подделать">Uses real BSC block hash — impossible to predict or manipulate</span></li>
-          <li><span class="icon">✓</span><span data-en="Every participant can independently verify the result" data-ru="Каждый участник может самостоятельно проверить результат">Every participant can independently verify the result</span></li>
-          <li><span class="icon">✓</span><span data-en="Bot posts block number publicly in the channel" data-ru="Бот публично публикует номер блока в канале">Bot posts block number publicly in the channel</span></li>
+          <li><span class="icon">✓</span><span data-en="Algorithm published before each round begins" data-ru="Алгоритм публикуется до начала каждого раунда">Алгоритм публикуется до начала каждого раунда</span></li>
+          <li><span class="icon">✓</span><span data-en="Uses real BSC block hash — impossible to predict or manipulate" data-ru="Использует реальный хэш блока BSC — невозможно предсказать или подделать">Использует реальный хэш блока BSC — невозможно предсказать или подделать</span></li>
+          <li><span class="icon">✓</span><span data-en="Every participant can independently verify the result" data-ru="Каждый участник может самостоятельно проверить результат">Каждый участник может самостоятельно проверить результат</span></li>
+          <li><span class="icon">✓</span><span data-en="Bot posts block number publicly in the channel" data-ru="Бот публично публикует номер блока в канале">Бот публично публикует номер блока в канале</span></li>
         </ul>
       </div>
       <div class="algo-formula reveal">
@@ -642,7 +709,7 @@
         <div class="formula-line"><span class="var">index</span><span class="op"> = </span><span class="var">blockHash</span><span class="op"> % </span><span class="var">count</span></div><br>
         <div class="formula-line"><span class="var">winner</span><span class="op"> = </span><span class="val">participants[index]</span></div>
         <div class="formula-result">
-          <span data-en="Verifiable by Anyone, Anywhere" data-ru="Проверяемо любым, где угодно">Verifiable by Anyone, Anywhere</span>
+          <span data-en="Verifiable by Anyone, Anywhere" data-ru="Проверяемо любым, где угодно">Проверяемо любым, где угодно</span>
           <em>via bscscan.com · block explorer</em>
         </div>
       </div>
@@ -654,25 +721,25 @@
 <section id="fund">
   <div class="section-inner">
     <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
-      <span class="section-label" data-en="Club Fund" data-ru="Клубный фонд">Club Fund</span>
-      <h2 class="section-title" data-en="How Your Contribution Is Used" data-ru="Как используется ваш взнос">How Your Contribution Is Used</h2>
-      <p class="section-body" style="margin:0 auto" data-en="Every voluntary contribution goes directly into the shared club fund, distributed with complete transparency." data-ru="Каждый добровольный взнос поступает напрямую в общий клубный фонд и распределяется с полной прозрачностью.">Every voluntary contribution goes directly into the shared club fund, distributed with complete transparency.</p>
+      <span class="section-label" data-en="Club Fund" data-ru="Клубный фонд">Клубный фонд</span>
+      <h2 class="section-title" data-en="How Your Contribution Is Used" data-ru="Как используется ваш взнос">Как используется ваш взнос</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Every voluntary contribution goes directly into the shared club fund, distributed with complete transparency." data-ru="Каждый добровольный взнос поступает напрямую в общий клубный фонд и распределяется с полной прозрачностью.">Каждый добровольный взнос поступает напрямую в общий клубный фонд и распределяется с полной прозрачностью.</p>
     </div>
     <div class="fund-cards reveal">
       <div class="fund-card featured">
         <div class="fund-pct">90%</div>
-        <div class="fund-title" data-en="Member Reward" data-ru="Поощрение участника">Member Reward</div>
-        <p class="fund-desc" data-en="The lion's share goes to one lucky community member, selected by the open blockchain algorithm each round." data-ru="Основная часть фонда направляется одному участнику сообщества, выбранному открытым алгоритмом блокчейна.">The lion's share goes to one lucky community member, selected by the open blockchain algorithm each round.</p>
+        <div class="fund-title" data-en="Member Reward" data-ru="Поощрение участника">Поощрение участника</div>
+        <p class="fund-desc" data-en="The lion's share goes to one lucky community member, selected by the open blockchain algorithm each round." data-ru="Основная часть фонда направляется одному участнику сообщества, выбранному открытым алгоритмом блокчейна.">Основная часть фонда направляется одному участнику сообщества, выбранному открытым алгоритмом блокчейна.</p>
       </div>
       <div class="fund-card">
         <div class="fund-pct">5%</div>
-        <div class="fund-title" data-en="Project Support" data-ru="Поддержка проекта">Project Support</div>
-        <p class="fund-desc" data-en="Covers bot development, infrastructure, security and ongoing platform improvements." data-ru="Покрывает разработку бота, инфраструктуру, безопасность и развитие платформы.">Covers bot development, infrastructure, security and ongoing platform improvements.</p>
+        <div class="fund-title" data-en="Project Support" data-ru="Поддержка проекта">Поддержка проекта</div>
+        <p class="fund-desc" data-en="Covers bot development, infrastructure, security and ongoing platform improvements." data-ru="Покрывает разработку бота, инфраструктуру, безопасность и развитие платформы.">Покрывает разработку бота, инфраструктуру, безопасность и развитие платформы.</p>
       </div>
       <div class="fund-card">
         <div class="fund-pct">5%</div>
-        <div class="fund-title" data-en="Charity" data-ru="Благотворительность">Charity</div>
-        <p class="fund-desc" data-en="A portion goes to charitable causes — the community grows together and gives back." data-ru="Часть средств направляется на благотворительность — сообщество растёт и делает добро вместе.">A portion goes to charitable causes — the community grows together and gives back.</p>
+        <div class="fund-title" data-en="Charity" data-ru="Благотворительность">Благотворительность</div>
+        <p class="fund-desc" data-en="A portion goes to charitable causes — the community grows together and gives back." data-ru="Часть средств направляется на благотворительность — сообщество растёт и делает добро вместе.">Часть средств направляется на благотворительность — сообщество растёт и делает добро вместе.</p>
       </div>
     </div>
   </div>
@@ -682,50 +749,50 @@
 <section class="why-section" id="why">
   <div class="section-inner">
     <div class="reveal">
-      <span class="section-label" data-en="Community" data-ru="Сообщество">Community</span>
-      <h2 class="section-title" data-en="Why Crypto Fortuna Club?" data-ru="Почему Crypto Fortuna Club?">Why Crypto Fortuna Club?</h2>
+      <span class="section-label" data-en="Community" data-ru="Сообщество">Сообщество</span>
+      <h2 class="section-title" data-en="Why Crypto Fortuna Club?" data-ru="Почему Crypto Fortuna Club?">Почему Crypto Fortuna Club?</h2>
     </div>
     <div class="why-grid reveal">
       <div class="why-card">
         <span class="why-icon">🔗</span>
         <div>
-          <h3 data-en="Blockchain-Native" data-ru="Блокчейн-нативный">Blockchain-Native</h3>
-          <p data-en="Built on BSC. Every distribution traceable on a public ledger — no trust required, only math." data-ru="Построен на BSC. Каждое распределение отслеживается в публичном реестре — нужна только математика, а не доверие.">Built on BSC. Every distribution traceable on a public ledger — no trust required, only math.</p>
+          <h3 data-en="Blockchain-Native" data-ru="Блокчейн-нативный">Блокчейн-нативный</h3>
+          <p data-en="Built on BSC. Every distribution traceable on a public ledger — no trust required, only math." data-ru="Построен на BSC. Каждое распределение отслеживается в публичном реестре — нужна только математика, а не доверие.">Построен на BSC. Каждое распределение отслеживается в публичном реестре — нужна только математика, а не доверие.</p>
         </div>
       </div>
       <div class="why-card">
         <span class="why-icon">🛡️</span>
         <div>
-          <h3 data-en="Fully Voluntary" data-ru="Полностью добровольно">Fully Voluntary</h3>
-          <p data-en="All contributions are voluntary. No subscription traps, no recurring charges. You decide." data-ru="Все взносы добровольны. Никаких подписочных ловушек, никаких регулярных списаний. Вы решаете сами.">All contributions are voluntary. No subscription traps, no recurring charges. You decide.</p>
+          <h3 data-en="Fully Voluntary" data-ru="Полностью добровольно">Полностью добровольно</h3>
+          <p data-en="All contributions are voluntary. No subscription traps, no recurring charges. You decide." data-ru="Все взносы добровольны. Никаких подписочных ловушек, никаких регулярных списаний. Вы решаете сами.">Все взносы добровольны. Никаких подписочных ловушек, никаких регулярных списаний. Вы решаете сами.</p>
         </div>
       </div>
       <div class="why-card">
         <span class="why-icon">👁️</span>
         <div>
-          <h3 data-en="100% Transparent" data-ru="100% Прозрачность">100% Transparent</h3>
-          <p data-en="The algorithm, block, and result are all public. Verify everything independently on BSCScan." data-ru="Алгоритм, блок и результат — всё публично. Проверяйте всё самостоятельно на BSCScan.">The algorithm, block, and result are all public. Verify everything independently on BSCScan.</p>
+          <h3 data-en="100% Transparent" data-ru="100% Прозрачность">100% Прозрачность</h3>
+          <p data-en="The algorithm, block, and result are all public. Verify everything independently on BSCScan." data-ru="Алгоритм, блок и результат — всё публично. Проверяйте всё самостоятельно на BSCScan.">Алгоритм, блок и результат — всё публично. Проверяйте всё самостоятельно на BSCScan.</p>
         </div>
       </div>
       <div class="why-card">
         <span class="why-icon">🤲</span>
         <div>
-          <h3 data-en="Charity Included" data-ru="С благотворительностью">Charity Included</h3>
-          <p data-en="Part of every round goes to charitable giving. The community grows and gives back." data-ru="Часть каждого раунда идёт на благотворительность. Сообщество растёт и помогает другим.">Part of every round goes to charitable giving. The community grows and gives back.</p>
+          <h3 data-en="Charity Included" data-ru="С благотворительностью">С благотворительностью</h3>
+          <p data-en="Part of every round goes to charitable giving. The community grows and gives back." data-ru="Часть каждого раунда идёт на благотворительность. Сообщество растёт и помогает другим.">Часть каждого раунда идёт на благотворительность. Сообщество растёт и помогает другим.</p>
         </div>
       </div>
       <div class="why-card">
         <span class="why-icon">⚡</span>
         <div>
-          <h3 data-en="Instant & Automated" data-ru="Мгновенно и автоматически">Instant & Automated</h3>
-          <p data-en="The Telegram bot handles everything automatically — join, track, and receive results instantly." data-ru="Telegram-бот делает всё автоматически — вступление, отслеживание и мгновенные результаты.">The Telegram bot handles everything automatically — join, track, and receive results instantly.</p>
+          <h3 data-en="Instant & Automated" data-ru="Мгновенно и автоматически">Мгновенно и автоматически</h3>
+          <p data-en="The Telegram bot handles everything automatically — join, track, and receive results instantly." data-ru="Telegram-бот делает всё автоматически — вступление, отслеживание и мгновенные результаты.">Telegram-бот делает всё автоматически — вступление, отслеживание и мгновенные результаты.</p>
         </div>
       </div>
       <div class="why-card">
         <span class="why-icon">🌐</span>
         <div>
-          <h3 data-en="Private Community" data-ru="Закрытое сообщество">Private Community</h3>
-          <p data-en="Member status gives you access to the community, results feed, and full round history." data-ru="Статус участника открывает доступ к сообществу, ленте результатов и полной истории раундов.">Member status gives you access to the community, results feed, and full round history.</p>
+          <h3 data-en="Private Community" data-ru="Закрытое сообщество">Закрытое сообщество</h3>
+          <p data-en="Member status gives you access to the community, results feed, and full round history." data-ru="Статус участника открывает доступ к сообществу, ленте результатов и полной истории раундов.">Статус участника открывает доступ к сообществу, ленте результатов и полной истории раундов.</p>
         </div>
       </div>
     </div>
@@ -736,29 +803,29 @@
 <section id="faq">
   <div class="section-inner">
     <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
-      <span class="section-label" data-en="Questions" data-ru="Вопросы">Questions</span>
-      <h2 class="section-title" data-en="Frequently Asked" data-ru="Частые вопросы">Frequently Asked</h2>
+      <span class="section-label" data-en="Questions" data-ru="Вопросы">Вопросы</span>
+      <h2 class="section-title" data-en="Frequently Asked" data-ru="Частые вопросы">Частые вопросы</h2>
     </div>
     <div class="faq-list reveal">
       <details class="faq-item">
-        <summary data-en="Which network and coin do I send?" data-ru="Какую сеть и монету отправлять?">Which network and coin do I send?</summary>
-        <p data-en="USDT on the BSC (BEP-20) network only. Sending on any other network (TRC-20, ERC-20, etc.) will not be detected and cannot be recovered by the bot." data-ru="Только USDT в сети BSC (BEP-20). Отправка в любой другой сети (TRC-20, ERC-20 и т.д.) не будет обнаружена ботом и не может быть возвращена автоматически.">USDT on the BSC (BEP-20) network only. Sending on any other network (TRC-20, ERC-20, etc.) will not be detected and cannot be recovered by the bot.</p>
+        <summary data-en="Which network and coin do I send?" data-ru="Какую сеть и монету отправлять?">Какую сеть и монету отправлять?</summary>
+        <p data-en="USDT on the BSC (BEP-20) network only. Sending on any other network (TRC-20, ERC-20, etc.) will not be detected and cannot be recovered by the bot." data-ru="Только USDT в сети BSC (BEP-20). Отправка в любой другой сети (TRC-20, ERC-20 и т.д.) не будет обнаружена ботом и не может быть возвращена автоматически.">Только USDT в сети BSC (BEP-20). Отправка в любой другой сети (TRC-20, ERC-20 и т.д.) не будет обнаружена ботом и не может быть возвращена автоматически.</p>
       </details>
       <details class="faq-item">
-        <summary data-en="Why hasn't the bot confirmed my payment?" data-ru="Почему бот не подтверждает мой платёж?">Why hasn't the bot confirmed my payment?</summary>
-        <p data-en="The bot assigns you a unique exact amount when you press Participate — sending that exact figure lets it auto-detect your transfer, usually within ~30 seconds. If you sent a different amount or it still hasn't confirmed after a few minutes, paste your transaction hash (TXID) directly in the chat for manual verification." data-ru="При нажатии «Участвовать» бот выдаёт уникальную точную сумму — если отправить её без округления, платёж определяется автоматически, обычно за ~30 секунд. Если сумма отличалась или прошло уже несколько минут, вставь хэш транзакции (TXID) прямо в чат для ручной проверки.">The bot assigns you a unique exact amount when you press Participate — sending that exact figure lets it auto-detect your transfer, usually within ~30 seconds. If you sent a different amount or it still hasn't confirmed after a few minutes, paste your transaction hash (TXID) directly in the chat for manual verification.</p>
+        <summary data-en="Why hasn't the bot confirmed my payment?" data-ru="Почему бот не подтверждает мой платёж?">Почему бот не подтверждает мой платёж?</summary>
+        <p data-en="The bot assigns you a unique exact amount when you press Participate — sending that exact figure lets it auto-detect your transfer, usually within ~30 seconds. If you sent a different amount or it still hasn't confirmed after a few minutes, paste your transaction hash (TXID) directly in the chat for manual verification." data-ru="При нажатии «Участвовать» бот выдаёт уникальную точную сумму — если отправить её без округления, платёж определяется автоматически, обычно за ~30 секунд. Если сумма отличалась или прошло уже несколько минут, вставь хэш транзакции (TXID) прямо в чат для ручной проверки.">При нажатии «Участвовать» бот выдаёт уникальную точную сумму — если отправить её без округления, платёж определяется автоматически, обычно за ~30 секунд. Если сумма отличалась или прошло уже несколько минут, вставь хэш транзакции (TXID) прямо в чат для ручной проверки.</p>
       </details>
       <details class="faq-item">
-        <summary data-en="How is the winner actually chosen?" data-ru="Как на самом деле выбирается победитель?">How is the winner actually chosen?</summary>
-        <p data-en="By taking the hash of a specific future BSC block, announced in advance, and computing hash % participant count. Nobody — including the club — can predict or influence a block hash before it's mined, and anyone can verify the calculation afterward on BscScan." data-ru="Берётся хэш заранее объявленного будущего блока BSC и вычисляется хэш % число участников. Никто — включая клуб — не может предсказать или повлиять на хэш блока до его добычи, а расчёт может проверить любой на BscScan.">By taking the hash of a specific future BSC block, announced in advance, and computing hash % participant count. Nobody — including the club — can predict or influence a block hash before it's mined, and anyone can verify the calculation afterward on BscScan.</p>
+        <summary data-en="How is the winner actually chosen?" data-ru="Как на самом деле выбирается победитель?">Как на самом деле выбирается победитель?</summary>
+        <p data-en="By taking the hash of a specific future BSC block, announced in advance, and computing hash % participant count. Nobody — including the club — can predict or influence a block hash before it's mined, and anyone can verify the calculation afterward on BscScan." data-ru="Берётся хэш заранее объявленного будущего блока BSC и вычисляется хэш % число участников. Никто — включая клуб — не может предсказать или повлиять на хэш блока до его добычи, а расчёт может проверить любой на BscScan.">Берётся хэш заранее объявленного будущего блока BSC и вычисляется хэш % число участников. Никто — включая клуб — не может предсказать или повлиять на хэш блока до его добычи, а расчёт может проверить любой на BscScan.</p>
       </details>
       <details class="faq-item">
-        <summary data-en="What if the round takes a while to fill?" data-ru="Что если раунд долго не заполняется?">What if the round takes a while to fill?</summary>
-        <p data-en="Nothing is lost — your ticket and contribution stay reserved until the round fills and the draw runs. You can check live progress any time with the 💰 Pool option in the bot." data-ru="Ничего не пропадёт — твой билет и взнос сохраняются до заполнения раунда и розыгрыша. Актуальный прогресс всегда можно посмотреть через «💰 Банк» в боте.">Nothing is lost — your ticket and contribution stay reserved until the round fills and the draw runs. You can check live progress any time with the 💰 Pool option in the bot.</p>
+        <summary data-en="What if the round takes a while to fill?" data-ru="Что если раунд долго не заполняется?">Что если раунд долго не заполняется?</summary>
+        <p data-en="Nothing is lost — your ticket and contribution stay reserved until the round fills and the draw runs. You can check live progress any time with the 💰 Pool option in the bot." data-ru="Ничего не пропадёт — твой билет и взнос сохраняются до заполнения раунда и розыгрыша. Актуальный прогресс всегда можно посмотреть через «💰 Банк» в боте.">Ничего не пропадёт — твой билет и взнос сохраняются до заполнения раунда и розыгрыша. Актуальный прогресс всегда можно посмотреть через «💰 Банк» в боте.</p>
       </details>
       <details class="faq-item">
-        <summary data-en="Can I get more than one ticket?" data-ru="Можно ли получить больше одного билета?">Can I get more than one ticket?</summary>
-        <p data-en="One paid entry per person per round. You can earn extra free tickets by inviting friends — see 🔗 Invite in the bot." data-ru="Один платный билет на человека за раунд. Дополнительные бесплатные билеты можно заработать, приглашая друзей — см. «🔗 Пригласить» в боте.">One paid entry per person per round. You can earn extra free tickets by inviting friends — see 🔗 Invite in the bot.</p>
+        <summary data-en="Can I get more than one ticket?" data-ru="Можно ли получить больше одного билета?">Можно ли получить больше одного билета?</summary>
+        <p data-en="One paid entry per person per round. You can earn extra free tickets by inviting friends — see 🔗 Invite in the bot." data-ru="Один платный билет на человека за раунд. Дополнительные бесплатные билеты можно заработать, приглашая друзей — см. «🔗 Пригласить» в боте.">Один платный билет на человека за раунд. Дополнительные бесплатные билеты можно заработать, приглашая друзей — см. «🔗 Пригласить» в боте.</p>
       </details>
     </div>
   </div>
@@ -768,12 +835,12 @@
 <section id="history">
   <div class="section-inner">
     <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
-      <span class="section-label" data-en="Verifiable Results" data-ru="Проверяемые результаты">Verifiable Results</span>
-      <h2 class="section-title" data-en="Round History" data-ru="История раундов">Round History</h2>
-      <p class="section-body" style="margin:0 auto" data-en="Every completed round, every winner, every BSC block — public and checkable by anyone." data-ru="Каждый завершённый раунд, каждый победитель, каждый блок BSC — публично и проверяемо любым.">Every completed round, every winner, every BSC block — public and checkable by anyone.</p>
+      <span class="section-label" data-en="Verifiable Results" data-ru="Проверяемые результаты">Проверяемые результаты</span>
+      <h2 class="section-title" data-en="Round History" data-ru="История раундов">История раундов</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Every completed round, every winner, every BSC block — public and checkable by anyone." data-ru="Каждый завершённый раунд, каждый победитель, каждый блок BSC — публично и проверяемо любым.">Каждый завершённый раунд, каждый победитель, каждый блок BSC — публично и проверяемо любым.</p>
     </div>
     <div class="history-list reveal" id="history-list">
-      <div class="history-empty" data-en="Loading round history…" data-ru="Загружаю историю раундов…">Loading round history…</div>
+      <div class="history-empty" data-en="Loading round history…" data-ru="Загружаю историю раундов…">Загружаю историю раундов…</div>
     </div>
   </div>
 </section>
@@ -782,12 +849,12 @@
 <section id="leaderboard">
   <div class="section-inner">
     <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
-      <span class="section-label" data-en="Hall of Fame" data-ru="Зал славы">Hall of Fame</span>
-      <h2 class="section-title" data-en="Top Winners" data-ru="Топ победителей">Top Winners</h2>
-      <p class="section-body" style="margin:0 auto" data-en="Members with the most confirmed wins, all-time." data-ru="Участники с наибольшим числом подтверждённых побед за всё время.">Members with the most confirmed wins, all-time.</p>
+      <span class="section-label" data-en="Hall of Fame" data-ru="Зал славы">Зал славы</span>
+      <h2 class="section-title" data-en="Top Winners" data-ru="Топ победителей">Топ победителей</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Members with the most confirmed wins, all-time." data-ru="Участники с наибольшим числом подтверждённых побед за всё время.">Участники с наибольшим числом подтверждённых побед за всё время.</p>
     </div>
     <div class="leader-list reveal" id="leaderboard-list">
-      <div class="leader-empty" data-en="Loading leaderboard…" data-ru="Загружаю лидерборд…">Loading leaderboard…</div>
+      <div class="leader-empty" data-en="Loading leaderboard…" data-ru="Загружаю лидерборд…">Загружаю лидерборд…</div>
     </div>
   </div>
 </section>
@@ -796,9 +863,9 @@
 <section class="tg-section" id="telegram">
   <div class="tg-inner">
     <div class="reveal" style="text-align:center;max-width:560px;margin:0 auto">
-      <span class="section-label" data-en="Find Us on Telegram" data-ru="Мы в Telegram">Find Us on Telegram</span>
-      <h2 class="section-title" data-en="Join the Community" data-ru="Присоединяйтесь">Join the Community</h2>
-      <p class="section-body" style="margin:0 auto" data-en="Subscribe to the channel for news and results — then use the bot to become a member and participate in the club fund distribution." data-ru="Подпишитесь на канал для новостей и результатов — затем используйте бота, чтобы стать участником и участвовать в распределении клубного фонда.">Subscribe to the channel for news and results — then use the bot to become a member and participate in the club fund distribution.</p>
+      <span class="section-label" data-en="Find Us on Telegram" data-ru="Мы в Telegram">Мы в Telegram</span>
+      <h2 class="section-title" data-en="Join the Community" data-ru="Присоединяйтесь">Присоединяйтесь</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Subscribe to the channel for news and results — then use the bot to become a member and participate in the club fund distribution." data-ru="Подпишитесь на канал для новостей и результатов — затем используйте бота, чтобы стать участником и участвовать в распределении клубного фонда.">Подпишитесь на канал для новостей и результатов — затем используйте бота, чтобы стать участником и участвовать в распределении клубного фонда.</p>
     </div>
     <div class="tg-cards reveal">
       <a href="https://t.me/realcryptofortuna" target="_blank" rel="noopener" class="tg-card">
@@ -806,9 +873,9 @@
           <svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
         </div>
         <div class="tg-card-body">
-          <div class="tg-card-type" data-en="Telegram Channel" data-ru="Telegram Канал">Telegram Channel</div>
+          <div class="tg-card-type" data-en="Telegram Channel" data-ru="Telegram Канал">Telegram Канал</div>
           <div class="tg-card-name">@realcryptofortuna</div>
-          <p class="tg-card-desc" data-en="News, round results, block verification, and community updates. Subscribe to stay informed." data-ru="Новости, результаты раундов, верификация блоков и обновления сообщества. Подписывайтесь, чтобы быть в курсе.">News, round results, block verification, and community updates. Subscribe to stay informed.</p>
+          <p class="tg-card-desc" data-en="News, round results, block verification, and community updates. Subscribe to stay informed." data-ru="Новости, результаты раундов, верификация блоков и обновления сообщества. Подписывайтесь, чтобы быть в курсе.">Новости, результаты раундов, верификация блоков и обновления сообщества. Подписывайтесь, чтобы быть в курсе.</p>
         </div>
         <div class="tg-card-arrow">→</div>
       </a>
@@ -817,9 +884,9 @@
           <svg viewBox="0 0 24 24" fill="#000"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
         </div>
         <div class="tg-card-body">
-          <div class="tg-card-type" data-en="Telegram Bot" data-ru="Telegram Бот">Telegram Bot</div>
+          <div class="tg-card-type" data-en="Telegram Bot" data-ru="Telegram Бот">Telegram Бот</div>
           <div class="tg-card-name">@RealCryptoFortunaBot</div>
-          <p class="tg-card-desc" data-en="Make your voluntary contribution, receive member status, and participate in fund distribution automatically." data-ru="Сделайте добровольный взнос, получите статус участника и автоматически участвуйте в распределении фонда.">Make your voluntary contribution, receive member status, and participate in fund distribution automatically.</p>
+          <p class="tg-card-desc" data-en="Make your voluntary contribution, receive member status, and participate in fund distribution automatically." data-ru="Сделайте добровольный взнос, получите статус участника и автоматически участвуйте в распределении фонда.">Сделайте добровольный взнос, получите статус участника и автоматически участвуйте в распределении фонда.</p>
         </div>
         <div class="tg-card-arrow">→</div>
       </a>
@@ -831,29 +898,29 @@
 <section class="cta-section">
   <div class="cta-glow"></div>
   <div class="cta-inner reveal">
-    <span class="section-label" data-en="Get Started Today" data-ru="Начните сегодня">Get Started Today</span>
-    <h2 class="cta-title" data-en="Ready to Join?" data-ru="Готовы вступить?">Ready to Join?</h2>
-    <p class="cta-body" data-en="Become a member of Crypto Fortuna Club. 5 USDT voluntary contribution · BSC network · Instant confirmation." data-ru="Станьте участником Crypto Fortuna Club. Добровольный взнос 5 USDT · Сеть BSC · Мгновенное подтверждение.">Become a member of Crypto Fortuna Club. 5 USDT voluntary contribution · BSC network · Instant confirmation.</p>
+    <span class="section-label" data-en="Get Started Today" data-ru="Начните сегодня">Начните сегодня</span>
+    <h2 class="cta-title" data-en="Ready to Join?" data-ru="Готовы вступить?">Готовы вступить?</h2>
+    <p class="cta-body" data-en="Become a member of Crypto Fortuna Club. 5 USDT voluntary contribution · BSC network · Instant confirmation." data-ru="Станьте участником Crypto Fortuna Club. Добровольный взнос 5 USDT · Сеть BSC · Мгновенное подтверждение.">Станьте участником Crypto Fortuna Club. Добровольный взнос 5 USDT · Сеть BSC · Мгновенное подтверждение.</p>
     <div class="cta-btns">
       <a href="https://t.me/RealCryptoFortunaBot" target="_blank" rel="noopener" class="cta-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
-        <span data-en="Join via Bot" data-ru="Вступить через бота">Join via Bot</span>
+        <span data-en="Join via Bot" data-ru="Вступить через бота">Вступить через бота</span>
       </a>
       <a href="https://t.me/realcryptofortuna" target="_blank" rel="noopener" class="cta-btn outline">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.332 14.33 4.37 13.44c-.656-.207-.67-.656.136-.971l10.86-4.185c.543-.195 1.023.13.528.937z"/></svg>
-        <span data-en="Subscribe to Channel" data-ru="Подписаться на канал">Subscribe to Channel</span>
+        <span data-en="Subscribe to Channel" data-ru="Подписаться на канал">Подписаться на канал</span>
       </a>
     </div>
-    <p class="cta-note" data-en="Telegram required · BSC USDT · Voluntary participation · Reward not guaranteed" data-ru="Требуется Telegram · BSC USDT · Участие добровольно · Поощрение не гарантируется">Telegram required · BSC USDT · Voluntary participation · Reward not guaranteed</p>
+    <p class="cta-note" data-en="Telegram required · BSC USDT · Voluntary participation · Reward not guaranteed" data-ru="Требуется Telegram · BSC USDT · Участие добровольно · Поощрение не гарантируется">Требуется Telegram · BSC USDT · Участие добровольно · Поощрение не гарантируется</p>
   </div>
 </section>
 
 <!-- DISCLAIMER -->
 <section>
   <div class="disclaimer-inner reveal">
-    <div class="disclaimer-title" data-en="⚖️ Legal Disclaimer" data-ru="⚖️ Правовая оговорка">⚖️ Legal Disclaimer</div>
+    <div class="disclaimer-title" data-en="⚖️ Legal Disclaimer" data-ru="⚖️ Правовая оговорка">⚖️ Правовая оговорка</div>
     <p class="disclaimer-text" data-en="Crypto Fortuna Club is a private community. All membership contributions are strictly voluntary. Participation does not constitute payment for gambling, a lottery, or any financial service. Receiving a reward is not guaranteed. The project makes no promises of financial returns or investment income. Members participate at their own discretion. This website is for informational purposes only and does not constitute financial or legal advice." data-ru="Crypto Fortuna Club является частным сообществом. Все членские взносы носят исключительно добровольный характер. Участие не является оплатой за азартную игру, лотерею или финансовую услугу. Получение поощрения не гарантируется. Проект не обещает финансовой доходности или инвестиционного дохода. Участники принимают решение об участии самостоятельно. Данный сайт носит исключительно информационный характер и не является финансовой или юридической консультацией.">
-      Crypto Fortuna Club is a private community. All membership contributions are strictly voluntary. Participation does not constitute payment for gambling, a lottery, or any financial service. Receiving a reward is not guaranteed. The project makes no promises of financial returns or investment income. Members participate at their own discretion. This website is for informational purposes only and does not constitute financial or legal advice.
+      Crypto Fortuna Club является частным сообществом. Все членские взносы носят исключительно добровольный характер. Участие не является оплатой за азартную игру, лотерею или финансовую услугу. Получение поощрения не гарантируется. Проект не обещает финансовой доходности или инвестиционного дохода. Участники принимают решение об участии самостоятельно. Данный сайт носит исключительно информационный характер и не является финансовой или юридической консультацией.
     </p>
   </div>
 </section>
@@ -861,10 +928,10 @@
 <!-- FOOTER -->
 <footer>
   <div class="footer-inner">
-    <div class="footer-brand">© 2025 Crypto Fortuna Club</div>
+    <div class="footer-brand">© <span id="footer-year">2026</span> Crypto Fortuna Club</div>
     <div class="footer-links">
-      <a href="https://t.me/realcryptofortuna" target="_blank" data-en="Channel" data-ru="Канал">Channel</a>
-      <a href="https://t.me/RealCryptoFortunaBot" target="_blank" data-en="Bot" data-ru="Бот">Bot</a>
+      <a href="https://t.me/realcryptofortuna" target="_blank" data-en="Channel" data-ru="Канал">Канал</a>
+      <a href="https://t.me/RealCryptoFortunaBot" target="_blank" data-en="Bot" data-ru="Бот">Бот</a>
       <a href="https://bscscan.com" target="_blank">BSCScan</a>
     </div>
   </div>
@@ -896,6 +963,10 @@ function draw(){
 resize(); init(); draw();
 window.addEventListener('resize',()=>{resize();init();});
 
+// FOOTER YEAR
+const footerYear = document.getElementById('footer-year');
+if (footerYear) footerYear.textContent = new Date().getFullYear();
+
 // NAV SCROLL
 const nav = document.getElementById('main-nav');
 window.addEventListener('scroll',()=>{
@@ -910,7 +981,7 @@ const obs = new IntersectionObserver((entries)=>{
 els.forEach(e=>obs.observe(e));
 
 // LANGUAGE SWITCHER
-let currentLang = 'en';
+let currentLang = 'ru';
 function setLang(lang){
   currentLang = lang;
   document.getElementById('btn-en').classList.toggle('active', lang==='en');
@@ -921,9 +992,10 @@ function setLang(lang){
     if(text !== null) el.innerHTML = text;
   });
 }
-// detect browser language on load
+// Russian is the default (primary audience) — only switch to English
+// for visitors whose browser is explicitly set to English.
 const browserLang = (navigator.language||navigator.userLanguage||'').slice(0,2).toLowerCase();
-if(browserLang === 'ru') setLang('ru');
+if(browserLang === 'en') setLang('en');
 
 // YANDEX.METRIKA GOALS — track CTA clicks separately from pageviews
 function trackGoal(name){
