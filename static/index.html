@@ -78,6 +78,44 @@
   }
 
   .foot { text-align: center; font-size: 0.72rem; color: var(--hint); margin-top: 18px; opacity: 0.7; }
+
+  /* WHEEL */
+  .wheel-outer { position: relative; width: 220px; height: 220px; margin: 6px auto 8px; }
+  .wheel-pin {
+    position: absolute; top: -7px; left: 50%; transform: translateX(-50%); z-index: 2;
+    width: 0; height: 0;
+    border-left: 9px solid transparent; border-right: 9px solid transparent;
+    border-top: 15px solid var(--gold);
+    filter: drop-shadow(0 0 4px rgba(255,208,96,0.5));
+  }
+  .wheel {
+    width: 220px; height: 220px; border-radius: 50%; position: relative;
+    background: repeating-conic-gradient(#161622 0deg 15deg, #1f1f30 15deg 30deg);
+    border: 3px solid var(--line);
+    box-shadow: 0 0 30px rgba(255,208,96,0.12), inset 0 0 20px rgba(0,0,0,0.4);
+  }
+  .wheel::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: repeating-conic-gradient(rgba(255,208,96,0.25) 0deg 0.6deg, transparent 0.6deg 30deg);
+  }
+  .wheel-hub {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; font-weight: 700; color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+  .round-picks { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 12px 0 4px; }
+  .round-chip {
+    background: none; border: 1px solid var(--line); color: var(--hint);
+    border-radius: 999px; padding: 5px 13px; font-size: 0.76rem; cursor: pointer;
+    font-family: inherit;
+  }
+  .round-chip.active { border-color: var(--gold); color: var(--gold); }
+  .wheel-result { text-align: center; font-size: 0.85rem; color: var(--hint); min-height: 3.4em; margin-top: 6px; line-height: 1.6; }
+  .wheel-result b { color: var(--text); }
+  .wheel-result a { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -128,6 +166,16 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-label">Как выбирают победителя</div>
+    <div class="wheel-outer">
+      <div class="wheel-pin"></div>
+      <div class="wheel" id="wheel"><div class="wheel-hub" id="wheel-hub">—</div></div>
+    </div>
+    <div class="round-picks" id="round-picks"></div>
+    <div class="wheel-result" id="wheel-result">Загружаю последние розыгрыши…</div>
+  </div>
+
   <a class="cta" href="#" id="cta-participate">🎟 Участвовать в боте</a>
   <div class="foot">Победитель определяется хэшем блока BSC — проверяемо любым в BscScan</div>
 
@@ -171,7 +219,83 @@
     if (tg) { tg.close(); } else { window.location.href = 'https://t.me/RealCryptoFortunaBot'; }
   });
 
+  // ── Wheel: replays a real past draw — the stop angle is derived from
+  // that round's actual winning ticket, not a random spin. ──────────────
+  var draws = [];
+  var spinning = false;
+
+  async function loadDraws() {
+    var resultEl = document.getElementById('wheel-result');
+    try {
+      var res = await fetch('/api/history');
+      draws = await res.json();
+      if (!Array.isArray(draws) || draws.length === 0) {
+        resultEl.innerHTML = 'Пока нет завершённых розыгрышей.';
+        return;
+      }
+      renderPicks();
+      spinTo(draws[0], false);
+    } catch (e) {
+      resultEl.innerHTML = 'История розыгрышей временно недоступна.';
+    }
+  }
+
+  function renderPicks() {
+    var wrap = document.getElementById('round-picks');
+    wrap.innerHTML = draws.slice(0, 5).map(function (d, i) {
+      return '<button class="round-chip' + (i === 0 ? ' active' : '') + '" onclick="pickRound(' + i + ')">#' + d.round + '</button>';
+    }).join('');
+  }
+
+  function pickRound(i) {
+    if (spinning) return;
+    var chips = document.querySelectorAll('.round-chip');
+    for (var c = 0; c < chips.length; c++) chips[c].classList.toggle('active', c === i);
+    spinTo(draws[i], true);
+  }
+
+  function spinTo(draw, animate) {
+    var wheel = document.getElementById('wheel');
+    var hub = document.getElementById('wheel-hub');
+    var resultEl = document.getElementById('wheel-result');
+    if (!draw || !draw.ticket || !draw.participants) {
+      resultEl.innerHTML = 'Нет данных для этого раунда.';
+      return;
+    }
+
+    var fraction = (draw.ticket - 0.5) / draw.participants;
+    var spins = animate ? 5 : 0;
+    var degrees = spins * 360 + fraction * 360;
+
+    spinning = animate;
+    if (animate) {
+      hub.textContent = '⏳';
+      resultEl.innerHTML = 'Крутим колесо…';
+    }
+
+    // Snap back to 0 with no transition, then animate to the real target —
+    // avoids a visible jump and lets the wheel be re-spun for any round.
+    wheel.style.transition = 'none';
+    wheel.style.transform = 'rotate(0deg)';
+    void wheel.offsetWidth;
+    wheel.style.transition = animate ? 'transform 4.5s cubic-bezier(0.15,0.65,0.12,1)' : 'none';
+    wheel.style.transform = 'rotate(' + degrees + 'deg)';
+
+    var reveal = function () {
+      hub.textContent = '#' + draw.ticket;
+      resultEl.innerHTML =
+        'Раунд <b>#' + draw.round + '</b> · Билет <b>#' + draw.ticket + '</b><br>' +
+        'Победитель: <b>' + (draw.winner || '—') + '</b> — <b>' + (draw.prize != null ? draw.prize.toFixed(2) : '0.00') + ' USDT</b><br>' +
+        (draw.block ? '<a href="https://bscscan.com/block/' + draw.block + '" target="_blank" rel="noopener">Проверить на BscScan ↗</a>' : '');
+      spinning = false;
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    };
+
+    if (animate) { setTimeout(reveal, 4600); } else { reveal(); }
+  }
+
   loadStats();
+  loadDraws();
   setInterval(loadStats, 15000);
 </script>
 </body>
