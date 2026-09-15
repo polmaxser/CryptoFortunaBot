@@ -1000,6 +1000,47 @@ async def bsc_get_logs(from_block: int, to_block: int) -> list[dict]:
         return []
 
 
+USDT_BALANCEOF_SELECTOR = "0x70a08231"
+_wallet_balance_cache: dict = {"value": None, "ts": 0.0}
+WALLET_BALANCE_CACHE_TTL = 60  # seconds — avoids hitting the RPC on every /stats poll
+
+
+async def bsc_get_usdt_balance(address: str) -> float | None:
+    """Live USDT balance of `address`, via a read-only ERC20 balanceOf call."""
+    padded = address[2:].lower().rjust(64, "0")
+    payload = {
+        "jsonrpc": "2.0", "method": "eth_call",
+        "params": [{"to": USDT_CONTRACT, "data": USDT_BALANCEOF_SELECTOR + padded}, "latest"],
+        "id": 1,
+    }
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post(
+                _rpc_url(), json=payload, timeout=aiohttp.ClientTimeout(total=10)
+            ) as r:
+                data = await r.json()
+                result = data.get("result")
+                if result and result != "0x":
+                    return int(result, 16) / 10**18
+    except Exception as exc:
+        log.error("bsc_get_usdt_balance: %s", exc)
+    return None
+
+
+async def get_cached_wallet_balance() -> float | None:
+    """Public wallet balance for the site/Mini App, cached briefly so many
+    concurrent viewers don't each trigger their own RPC call. Falls back to
+    the last known value if a refresh fails."""
+    now = time.time()
+    if now - _wallet_balance_cache["ts"] < WALLET_BALANCE_CACHE_TTL:
+        return _wallet_balance_cache["value"]
+    balance = await bsc_get_usdt_balance(WALLET_ADDRESS)
+    if balance is not None:
+        _wallet_balance_cache["value"] = balance
+        _wallet_balance_cache["ts"] = now
+    return _wallet_balance_cache["value"]
+
+
 async def bsc_verify_usdt_payment(
     txid: str,
     expected_address: str = WALLET_ADDRESS,
@@ -2209,6 +2250,7 @@ async def public_stats():
         "total_commission": float(agg["commission"]),
         "entry_fee": ENTRY_FEE,
         "wallet_address": WALLET_ADDRESS,
+        "wallet_balance": await get_cached_wallet_balance(),
     }
 
 

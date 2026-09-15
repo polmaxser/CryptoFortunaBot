@@ -4,6 +4,8 @@ async function loadStats() {
     const bankEl = document.getElementById('live-bank');
     const paidEl = document.getElementById('live-paid');
     const drawsEl = document.getElementById('live-draws');
+    const walletBalEl = document.getElementById('live-wallet-balance');
+    const walletLinkEl = document.getElementById('wallet-bscscan-link');
 
     try {
         const response = await fetch('https://cryptofortunabot.onrender.com/stats');
@@ -14,6 +16,8 @@ async function loadStats() {
         if (bankEl) bankEl.innerText = (data.current_bank ?? 0) + ' USDT';
         if (paidEl) paidEl.innerText = Math.round((data.total_commission || 0) * 9) + ' USDT';
         if (drawsEl) drawsEl.innerText = data.total_draws ?? 0;
+        if (walletBalEl) walletBalEl.innerText = data.wallet_balance != null ? data.wallet_balance.toFixed(2) : '—';
+        if (walletLinkEl && data.wallet_address) walletLinkEl.href = 'https://bscscan.com/address/' + data.wallet_address;
     } catch (error) {
         console.log('Статистика временно недоступна');
     }

@@ -68,6 +68,8 @@
     background: none; border: 1px solid var(--line); color: var(--gold);
     border-radius: 6px; padding: 5px 9px; font-size: 0.72rem; cursor: pointer;
   }
+  .wallet-proof { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.78rem; color: var(--hint); }
+  .wallet-proof b { color: var(--gold); }
 
   .cta {
     display: block; width: 100%; text-align: center;
@@ -164,6 +166,7 @@
       <span id="w-fee">—</span>
       <button class="pay-copy" onclick="copyField('w-fee')">Копировать</button>
     </div>
+    <div class="wallet-proof">Баланс кошелька сейчас: <b id="w-balance">—</b> USDT</div>
   </div>
 
   <div class="card">
@@ -203,6 +206,7 @@
 
       document.getElementById('w-address').innerText = d.wallet_address || '—';
       document.getElementById('w-fee').innerText = (d.entry_fee ?? '—') + ' USDT (минимум)';
+      document.getElementById('w-balance').innerText = d.wallet_balance != null ? d.wallet_balance.toFixed(2) : '—';
     } catch (e) {
       console.log('stats unavailable', e);
     }

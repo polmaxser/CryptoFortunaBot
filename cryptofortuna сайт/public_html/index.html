@@ -230,6 +230,9 @@
   }
   .stat-value { font-family: 'Cinzel', serif; font-size: 1.7rem; font-weight: 700; color: var(--gold); line-height: 1; margin-bottom: 4px; }
   .stat-label { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+  .wallet-proof { margin-top: 22px; font-size: 0.85rem; color: var(--text-muted); }
+  .wallet-proof b { color: var(--gold); font-family: 'Cinzel', serif; }
+  .wallet-proof a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; margin-left: 6px; }
 
   /* SECTIONS */
   section { position: relative; z-index: 2; }
@@ -664,6 +667,11 @@
         <div class="stat-value" id="live-draws">—</div>
         <div class="stat-label" data-en="Draws Completed" data-ru="Розыгрышей проведено">Розыгрышей проведено</div>
       </div>
+    </div>
+    <div class="wallet-proof reveal">
+      <span data-en="Live wallet balance: " data-ru="Баланс кошелька прямо сейчас: ">Баланс кошелька прямо сейчас: </span>
+      <b id="live-wallet-balance">—</b> USDT
+      <a href="#" id="wallet-bscscan-link" target="_blank" rel="noopener" data-en="verify on BscScan ↗" data-ru="проверить в BscScan ↗">проверить в BscScan ↗</a>
     </div>
   </div>
 </section>
