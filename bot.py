@@ -80,6 +80,10 @@ _lang_cache: dict[int, str] = {}
 # Prevents duplicate verifications and allows /cancel.
 _pending: dict[int, asyncio.Task] = {}
 
+# Per-user cooldown after a failed TXID verification — throttles RPC spam.
+_last_txid_fail: dict[int, float] = {}
+TXID_RETRY_COOLDOWN_SEC = 30
+
 # Last BSC block scanned by payment_watcher() for incoming USDT transfers.
 _last_scanned_block: int | None = None
 
@@ -297,6 +301,10 @@ T: dict[str, dict[str, str]] = {
             "Убедись, что отправил *{fee} USDT* \\(BEP\\-20\\) на правильный адрес\\.\n"
             "Нажми 🎟 Участвовать, чтобы увидеть адрес ещё раз\\."
         ),
+    },
+    "txid_retry_cooldown": {
+        "en": "⏳ Last check failed — please wait *{seconds}s* before trying another TXID\\.",
+        "ru": "⏳ Прошлая проверка не удалась — подожди *{seconds} сек\\.* перед следующей попыткой\\.",
     },
     "round_full": {
         "en": "⚠️ Round is full \\({limit} participants\\)\\. Please wait for the next round\\!",
@@ -1356,6 +1364,7 @@ async def _verify_task(uid: int, txid: str, reply_to: Message, lang: str) -> Non
         else:
             await check_fill_milestone(new_count)
     else:
+        _last_txid_fail[uid] = time.time()
         await reply_to.answer(t("txid_error", lang, msg=msg, fee=ENTRY_FEE))
 
 
@@ -1598,7 +1607,7 @@ async def run_full_draw() -> None:
                     log.info("🏆 Draw #%d done — winner @%s ticket #%d",
                              round_number, winner_uname, winner_ticket)
 
-                    if winner_uid:
+                    if winner_uid and winner_uid > 0:
                         await notify_winner(winner_uid, winner_uname, round_number, winner_ticket, prize)
                 else:
                     log.warning("⚠️  Draw #%d failed — participants kept", round_number)
@@ -2024,6 +2033,16 @@ async def handle_txid(message: Message) -> None:
         await message.answer(t("txid_invalid", lang))
         return
 
+    # Cooldown after a failed verification — a well-formed but fake TXID
+    # would otherwise let anyone spam the RPC provider (3 calls, up to 60s
+    # each) for free, back to back.
+    since_fail = time.time() - _last_txid_fail.get(uid, 0)
+    if since_fail < TXID_RETRY_COOLDOWN_SEC:
+        await message.answer(
+            t("txid_retry_cooldown", lang, seconds=round(TXID_RETRY_COOLDOWN_SEC - since_fail))
+        )
+        return
+
     txid = raw.lower()
 
     # Quick pre-checks before firing the slow task
@@ -2072,9 +2091,13 @@ async def cmd_add(message: Message) -> None:
         ticket = (await conn.fetchval(
             "SELECT COALESCE(MAX(ticket_number),0) FROM participants"
         )) + 1
+        # Fake entries need a telegram_id too (UNIQUE constraint), but it must
+        # never collide between two /add calls in the same round — negative
+        # ticket number is a simple always-unique, always-non-real-user value
+        # (real Telegram user IDs are always positive).
         await conn.execute(
-            "INSERT INTO participants (ticket_number, telegram_id, username) VALUES ($1,0,$2)",
-            ticket, username,
+            "INSERT INTO participants (ticket_number, telegram_id, username) VALUES ($1,$2,$3)",
+            ticket, -ticket, username,
         )
     await message.answer(f"✅ {esc(username)} added\\! Ticket \\#{ticket}",
                          parse_mode="MarkdownV2")
