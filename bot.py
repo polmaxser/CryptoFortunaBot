@@ -248,6 +248,18 @@ T: dict[str, dict[str, str]] = {
         "en": "⏳ You already have a verification in progress\\. Please wait, or use /cancel to abort it\\.",
         "ru": "⏳ У вас уже идёт проверка транзакции\\. Подождите или используйте /cancel для отмены\\.",
     },
+    "txid_wallet_mismatch": {
+        "en": (
+            "❌ This transaction was sent from a different wallet than the one "
+            "on your account\\. Please send the payment from the same wallet "
+            "you used before, or contact support if you've switched wallets\\."
+        ),
+        "ru": (
+            "❌ Эта транзакция отправлена с другого кошелька, чем привязан к твоему "
+            "аккаунту\\. Отправь оплату с того же кошелька, что и раньше, "
+            "или напиши в поддержку, если сменил кошелёк\\."
+        ),
+    },
     "txid_cancelled": {
         "en": "🚫 Transaction verification cancelled\\.",
         "ru": "🚫 Проверка транзакции отменена\\.",
@@ -1163,6 +1175,19 @@ async def _verify_task(uid: int, txid: str, reply_to: Message, lang: str) -> Non
     if success:
         uname = reply_to.from_user.username or f"user_{uid}"
         async with db_pool.acquire() as conn:
+            # Anti-theft: if this user has a wallet bound from a previous
+            # round, the TXID's sender must match it — otherwise anyone
+            # could grab another user's payment off the public wallet
+            # address and claim the ticket before the real payer does.
+            # First-time users (no bound wallet yet) have nothing to check
+            # against and go through unguarded, same as before.
+            bound_wallet = await conn.fetchval(
+                "SELECT wallet_address FROM users WHERE telegram_id=$1", uid
+            )
+            if bound_wallet and from_addr and bound_wallet.lower() != from_addr.lower():
+                await reply_to.answer(t("txid_wallet_mismatch", lang))
+                return
+
             # Guard: re-check inside a serializable context
             already_in = await conn.fetchval(
                 "SELECT 1 FROM participants WHERE telegram_id = $1", uid
