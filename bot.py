@@ -84,6 +84,11 @@ _pending: dict[int, asyncio.Task] = {}
 # Last BSC block scanned by payment_watcher() for incoming USDT transfers.
 _last_scanned_block: int | None = None
 
+# Fill-percentage milestones already hyped in the channel this round —
+# cleared whenever the participants table resets (new round).
+_announced_milestones: set[int] = set()
+MILESTONE_FRACTIONS = (0.5, 0.8, 0.95)
+
 bot = Bot(
     token=BOT_TOKEN,
     default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2),
@@ -438,6 +443,20 @@ T: dict[str, dict[str, str]] = {
                     "ru": "🌐 Language set to *English*\\."},
     "lang_now_ru": {"en": "🌐 Язык изменён на *Русский*\\.",
                     "ru": "🌐 Язык изменён на *Русский*\\."},
+
+    # ── Fill milestone hype ──────────────────────────────────────
+    "milestone_hype": {
+        "en": (
+            "🔥 *The pool is {pct}% full\\!*\n\n"
+            "👥 {count}/{limit} participants — only *{slots}* spots left\\.\n"
+            "Join now before it's gone: @RealCryptoFortunaBot"
+        ),
+        "ru": (
+            "🔥 *Банк заполнен на {pct}%\\!*\n\n"
+            "👥 {count}/{limit} участников — осталось всего *{slots}* мест\\.\n"
+            "Успей вступить: @RealCryptoFortunaBot"
+        ),
+    },
 
     # ── Announce post ─────────────────────────────────────────
     "announce_post": {
@@ -1108,6 +1127,8 @@ async def payment_watcher() -> None:
 
                 if new_count >= PARTICIPANT_LIMIT and not draw_lock.locked():
                     asyncio.create_task(run_full_draw())
+                else:
+                    await check_fill_milestone(new_count)
 
             _last_scanned_block = to_block
         except asyncio.CancelledError:
@@ -1240,8 +1261,64 @@ async def _verify_task(uid: int, txid: str, reply_to: Message, lang: str) -> Non
         # Auto-draw if round is full
         if new_count >= PARTICIPANT_LIMIT and not draw_lock.locked():
             asyncio.create_task(run_full_draw())
+        else:
+            await check_fill_milestone(new_count)
     else:
         await reply_to.answer(t("txid_error", lang, msg=msg, fee=ENTRY_FEE))
+
+
+async def check_fill_milestone(new_count: int) -> None:
+    """Posts a FOMO hype message to the channel the first time the pool
+    crosses 50/80/95% full. A full round gets its own draw-announce message
+    instead, so it's skipped here."""
+    if new_count >= PARTICIPANT_LIMIT:
+        return
+    for frac in MILESTONE_FRACTIONS:
+        threshold = int(PARTICIPANT_LIMIT * frac)
+        if threshold < 1 or new_count < threshold or threshold in _announced_milestones:
+            continue
+        _announced_milestones.add(threshold)
+        for lang in ("en", "ru"):
+            try:
+                await bot.send_message(
+                    CHANNEL_ID,
+                    t("milestone_hype", lang,
+                      pct=round(frac * 100), count=new_count, limit=PARTICIPANT_LIMIT,
+                      slots=PARTICIPANT_LIMIT - new_count),
+                    parse_mode=None,
+                )
+            except Exception as exc:
+                log.warning("Could not post milestone hype: %s", exc)
+
+
+async def announce_new_round() -> dict:
+    """Posts the 'new round started' hype message to the channel. Called
+    automatically right after a draw completes, and also by /announce
+    (which additionally DMs every user)."""
+    async with db_pool.acquire() as conn:
+        count = await conn.fetchval("SELECT COUNT(*) FROM participants")
+        last = await conn.fetchrow(
+            "SELECT winner_username, winner_ticket, winner_prize "
+            "FROM draw_history ORDER BY draw_date DESC LIMIT 1"
+        )
+    bank        = count * ENTRY_FEE
+    last_winner = esc(f"@{last['winner_username']}") if last else t("no_winner_yet", "en")
+    last_ticket = f"\\#{last['winner_ticket']}" if last else "—"
+    last_prize  = f"{last['winner_prize']:.2f}" if last else "0"
+
+    for lang in ("en", "ru"):
+        await bot.send_message(
+            CHANNEL_ID,
+            t("announce_post", lang,
+              bank=bank, count=count, limit=PARTICIPANT_LIMIT, fee=ENTRY_FEE,
+              last_winner=last_winner, last_ticket=last_ticket, last_prize=last_prize),
+            disable_web_page_preview=True,
+            parse_mode=None,
+        )
+    return {
+        "bank": bank, "count": count,
+        "last_winner": last_winner, "last_ticket": last_ticket, "last_prize": last_prize,
+    }
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1420,6 +1497,13 @@ async def run_full_draw() -> None:
                         await notify_winner(winner_uid, round_number, winner_ticket, prize)
                 else:
                     log.warning("⚠️  Draw #%d failed — participants kept", round_number)
+
+            if result:
+                _announced_milestones.clear()
+                try:
+                    await announce_new_round()
+                except Exception as exc:
+                    log.warning("Could not auto-announce new round: %s", exc)
         except Exception as exc:
             log.exception("💥 run_full_draw crashed: %s", exc)
 
@@ -1810,6 +1894,8 @@ async def cmd_free_ticket(message: Message) -> None:
 
     if new_count >= PARTICIPANT_LIMIT and not draw_lock.locked():
         asyncio.create_task(run_full_draw())
+    else:
+        await check_fill_milestone(new_count)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1888,6 +1974,7 @@ async def cmd_reset_db(message: Message) -> None:
     async with db_pool.acquire() as conn:
         for tbl in ("participants", "transactions", "draw_history", "referral_sources", "pending_payments"):
             await conn.execute(f"DELETE FROM {tbl}")
+    _announced_milestones.clear()
     await message.answer(t("admin_reset", "en"))
 
 
@@ -1920,26 +2007,7 @@ async def cmd_find_txid(message: Message) -> None:
 @dp.message(Command("announce"))
 @admin_only
 async def cmd_announce(message: Message) -> None:
-    async with db_pool.acquire() as conn:
-        count = await conn.fetchval("SELECT COUNT(*) FROM participants")
-        last  = await conn.fetchrow(
-            "SELECT winner_username, winner_ticket, winner_prize "
-            "FROM draw_history ORDER BY draw_date DESC LIMIT 1"
-        )
-    bank        = count * ENTRY_FEE
-    last_winner = esc(f"@{last['winner_username']}") if last else t("no_winner_yet", "en")
-    last_ticket = f"\\#{last['winner_ticket']}" if last else "—"
-    last_prize  = f"{last['winner_prize']:.2f}" if last else "0"
-
-    for lang in ("en", "ru"):
-        await bot.send_message(
-            CHANNEL_ID,
-            t("announce_post", lang,
-              bank=bank, count=count, limit=PARTICIPANT_LIMIT, fee=ENTRY_FEE,
-              last_winner=last_winner, last_ticket=last_ticket, last_prize=last_prize),
-            disable_web_page_preview=True,
-            parse_mode=None,
-        )
+    vals = await announce_new_round()
     await message.answer(t("admin_published", "en"))
 
     # Also DM everyone who has ever started the bot — channel subscribers
@@ -1952,8 +2020,7 @@ async def cmd_announce(message: Message) -> None:
             await bot.send_message(
                 u["telegram_id"],
                 t("announce_post", u["lang"] or "en",
-                  bank=bank, count=count, limit=PARTICIPANT_LIMIT, fee=ENTRY_FEE,
-                  last_winner=last_winner, last_ticket=last_ticket, last_prize=last_prize),
+                  limit=PARTICIPANT_LIMIT, fee=ENTRY_FEE, **vals),
                 disable_web_page_preview=True,
                 parse_mode=None,
             )
