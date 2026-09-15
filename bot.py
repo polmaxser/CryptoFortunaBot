@@ -41,7 +41,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton, Message, WebAppInfo,
-    InlineKeyboardMarkup, InlineKeyboardButton,
+    InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile,
 )
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -1473,8 +1473,11 @@ async def execute_draw(
     return winner_uname, winner_ticket, prize, winner_uid
 
 
-async def notify_winner(winner_uid: int, round_number: int, ticket: int, prize: float) -> None:
-    """DMs the winner a congrats message with a native Telegram share button."""
+async def notify_winner(
+    winner_uid: int, winner_uname: str, round_number: int, ticket: int, prize: float
+) -> None:
+    """DMs the winner a personalized win-card image with a native Telegram
+    share button."""
     try:
         lang = await get_lang(winner_uid)
         bot_me = await bot.get_me()
@@ -1486,9 +1489,11 @@ async def notify_winner(winner_uid: int, round_number: int, ticket: int, prize: 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text=t("share_win_button", lang), url=share_url)
         ]])
-        await bot.send_message(
+        card = render_win_card(lang, winner_uname, prize, round_number, ticket)
+        await bot.send_photo(
             winner_uid,
-            t("share_win_dm", lang, round=round_number, ticket=ticket, prize=esc(f"{prize:.2f}")),
+            photo=BufferedInputFile(card, filename="win.png"),
+            caption=t("share_win_dm", lang, round=round_number, ticket=ticket, prize=esc(f"{prize:.2f}")),
             reply_markup=keyboard,
         )
     except Exception as exc:
@@ -1553,7 +1558,7 @@ async def run_full_draw() -> None:
                              round_number, winner_uname, winner_ticket)
 
                     if winner_uid:
-                        await notify_winner(winner_uid, round_number, winner_ticket, prize)
+                        await notify_winner(winner_uid, winner_uname, round_number, winner_ticket, prize)
                 else:
                     log.warning("⚠️  Draw #%d failed — participants kept", round_number)
 
@@ -2249,6 +2254,56 @@ _OG_FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static
 def _og_font(size: int) -> ImageFont.FreeTypeFont:
     """Cyrillic-capable font, cached per size (PIL's built-in default font has no Cyrillic glyphs)."""
     return ImageFont.truetype(_OG_FONT_PATH, size)
+
+
+def _fit_font(text: str, max_width: int, start_size: int, min_size: int = 28) -> ImageFont.FreeTypeFont:
+    """Largest cached font size (down to min_size) that keeps `text` under
+    max_width — so long usernames don't run off the card."""
+    size = start_size
+    while size > min_size:
+        font = _og_font(size)
+        if font.getlength(text) <= max_width:
+            return font
+        size -= 4
+    return _og_font(min_size)
+
+
+_WIN_CARD_TEXT = {
+    # No emoji here — DejaVuSans (the only font baked into the image) has no
+    # emoji glyphs, unlike Telegram's own renderer for the caption text.
+    "en": {"headline": "YOU WON!", "meta": "Round #{round} · Ticket #{ticket}",
+           "tagline": "Provably fair · verified on BSC"},
+    "ru": {"headline": "ПОБЕДА!", "meta": "Раунд #{round} · Билет #{ticket}",
+           "tagline": "Честно и проверяемо · хэш блока BSC"},
+}
+
+
+def render_win_card(lang: str, winner_name: str, prize: float, round_number: int, ticket: int) -> bytes:
+    """Personalized share image for a round's winner — same visual style and
+    font pipeline as the site's OG image."""
+    copy = _WIN_CARD_TEXT.get(lang, _WIN_CARD_TEXT["en"])
+
+    W, H = 1200, 630
+    BG, GOLD, MUTED, TEXT = (8, 8, 16), (255, 208, 96), (154, 138, 106), (245, 234, 200)
+    img = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, W, 10], fill=GOLD)
+
+    max_w = W - 140
+    draw.text((70, 60), "CRYPTO FORTUNA CLUB", font=_og_font(28), fill=MUTED)
+    draw.text((70, 130), copy["headline"], font=_fit_font(copy["headline"], max_w, 64), fill=GOLD)
+    draw.text((70, 250), winner_name, font=_fit_font(winner_name, max_w, 60), fill=TEXT)
+
+    prize_text = f"{prize:.2f} USDT"
+    draw.text((70, 360), prize_text, font=_fit_font(prize_text, max_w, 88), fill=GOLD)
+
+    draw.text((70, 490), copy["meta"].format(round=round_number, ticket=ticket),
+               font=_og_font(28), fill=MUTED)
+    draw.text((70, 530), copy["tagline"], font=_og_font(28), fill=MUTED)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 @app.get("/og-image.png")
