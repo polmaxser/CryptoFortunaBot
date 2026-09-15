@@ -338,6 +338,28 @@
     .history-prize { text-align: left; }
   }
 
+  /* FAIRNESS VERIFIER */
+  .verify-box {
+    margin-top: 48px; max-width: 640px; margin-left: auto; margin-right: auto;
+    border: 1px solid rgba(255,208,96,0.12); border-radius: 12px;
+    padding: 28px; background: rgba(255,208,96,0.02);
+  }
+  .verify-inputs { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+  .verify-inputs label { display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem; color: var(--text-muted); flex: 1; min-width: 140px; }
+  .verify-inputs input {
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,208,96,0.2); border-radius: 6px;
+    color: var(--text-main); padding: 12px 14px; font-size: 0.95rem; font-family: inherit;
+  }
+  .verify-inputs input:focus { outline: none; border-color: var(--gold); }
+  .verify-inputs .btn-primary { padding: 12px 26px; font-size: 0.85rem; white-space: nowrap; box-shadow: none; }
+  .verify-result { margin-top: 20px; font-size: 0.9rem; color: var(--text-muted); line-height: 1.8; min-height: 1.6em; }
+  .verify-result .ticket { font-family: 'Cinzel', serif; font-size: 1.3rem; color: var(--gold); }
+  .verify-result code { background: rgba(255,208,96,0.08); padding: 2px 6px; border-radius: 4px; color: var(--text-main); }
+  .verify-result.error { color: #ff8a8a; }
+  @media (max-width: 640px) {
+    .verify-inputs { flex-direction: column; align-items: stretch; }
+  }
+
   /* LEADERBOARD */
   .leader-list { margin-top: 48px; display: grid; gap: 10px; max-width: 640px; margin-left: auto; margin-right: auto; }
   .leader-row {
@@ -713,6 +735,31 @@
           <em>via bscscan.com · block explorer</em>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAIRNESS VERIFIER -->
+<section id="verify">
+  <div class="section-inner">
+    <div class="reveal" style="text-align:center;max-width:580px;margin:0 auto">
+      <span class="section-label" data-en="Check It Yourself" data-ru="Проверь сам">Проверь сам</span>
+      <h2 class="section-title" data-en="Fairness Calculator" data-ru="Калькулятор честности">Калькулятор честности</h2>
+      <p class="section-body" style="margin:0 auto" data-en="Enter any round's block number and participant count and get the exact same winner as the channel post — or use the ↗ Verify link on a round in the history below." data-ru="Введи номер блока и число участников любого раунда — получишь тот же результат, что и в посте канала. Или нажми «Проверить» у любого раунда в истории ниже.">Введи номер блока и число участников любого раунда — получишь тот же результат, что и в посте канала. Или нажми «Проверить» у любого раунда в истории ниже.</p>
+    </div>
+    <div class="verify-box reveal">
+      <div class="verify-inputs">
+        <label>
+          <span data-en="BSC block number" data-ru="Номер блока BSC">Номер блока BSC</span>
+          <input type="number" id="verify-block" placeholder="45123456" inputmode="numeric">
+        </label>
+        <label>
+          <span data-en="Participants count" data-ru="Число участников">Число участников</span>
+          <input type="number" id="verify-count" placeholder="100" inputmode="numeric" min="1">
+        </label>
+        <button class="btn-primary" id="verify-btn" onclick="runVerify()" data-en="Verify" data-ru="Проверить">Проверить</button>
+      </div>
+      <div id="verify-result" class="verify-result"></div>
     </div>
   </div>
 </section>

@@ -47,12 +47,16 @@ async function loadHistory() {
             const blockLink = d.block
                 ? '<a href="https://bscscan.com/block/' + d.block + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px;">#' + d.block + '</a>'
                 : '';
+            const verifyWord = lang === 'ru' ? 'Проверить' : 'Verify';
+            const verifyLink = (d.block && d.participants)
+                ? ' &middot; <a href="#verify" onclick="verifyFromHistory(' + d.block + ',' + d.participants + ');return false;" style="color:var(--gold);text-decoration:underline;text-underline-offset:3px;">' + verifyWord + ' ↗</a>'
+                : '';
             return (
                 '<div class="history-row">' +
                     '<div class="history-round">#' + d.round + '<span>' + date + '</span></div>' +
                     '<div class="history-mid">' + (d.participants ?? 0) + ' ' + membersWord +
                         ' &middot; ' + winnerWord + ': <b>' + (d.winner || '—') + '</b> (' + ticketWord + ' #' + d.ticket + ')' +
-                        (blockLink ? ' &middot; ' + blockLink : '') +
+                        (blockLink ? ' &middot; ' + blockLink : '') + verifyLink +
                     '</div>' +
                     '<div class="history-prize">' + (d.prize != null ? d.prize.toFixed(2) : '0.00') + ' USDT</div>' +
                 '</div>'
@@ -100,6 +104,60 @@ async function loadLeaderboard() {
             (lang === 'ru' ? 'Лидерборд временно недоступен.' : 'Leaderboard is temporarily unavailable.') +
             '</div>';
     }
+}
+
+async function runVerify() {
+    const blockEl = document.getElementById('verify-block');
+    const countEl = document.getElementById('verify-count');
+    const resultEl = document.getElementById('verify-result');
+    const btn = document.getElementById('verify-btn');
+    if (!blockEl || !countEl || !resultEl) return;
+    const lang = (document.documentElement.lang || 'en').slice(0, 2);
+
+    const block = parseInt(blockEl.value, 10);
+    const count = parseInt(countEl.value, 10);
+    if (!block || !count || count < 1) {
+        resultEl.className = 'verify-result error';
+        resultEl.textContent = lang === 'ru'
+            ? 'Укажи номер блока и число участников.'
+            : 'Enter a block number and participant count.';
+        return;
+    }
+
+    btn.disabled = true;
+    resultEl.className = 'verify-result';
+    resultEl.textContent = lang === 'ru' ? 'Проверяю блок в сети BSC…' : 'Checking the block on BSC…';
+
+    try {
+        const response = await fetch('https://cryptofortunabot.onrender.com/api/verify?block=' + block + '&count=' + count);
+        const data = await response.json();
+        if (!response.ok || data.error || data.detail) {
+            throw new Error(data.detail || data.error || 'verify failed');
+        }
+        const hashShort = data.block_hash.slice(0, 24) + '…';
+        resultEl.innerHTML =
+            (lang === 'ru' ? 'Хэш блока: ' : 'Block hash: ') + '<code>' + hashShort + '</code>' +
+            ' <a href="https://bscscan.com/block/' + data.block + '" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:underline;">bscscan ↗</a><br>' +
+            (lang === 'ru' ? 'Билет победителя: ' : 'Winning ticket: ') +
+            '<span class="ticket">#' + data.winner_ticket + '</span>';
+    } catch (error) {
+        resultEl.className = 'verify-result error';
+        resultEl.textContent = lang === 'ru'
+            ? 'Не удалось проверить — блок ещё не добыт или сервис временно недоступен.'
+            : "Couldn't verify — the block may not be mined yet, or the service is temporarily unavailable.";
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function verifyFromHistory(block, count) {
+    const blockEl = document.getElementById('verify-block');
+    const countEl = document.getElementById('verify-count');
+    if (!blockEl || !countEl) return;
+    blockEl.value = block;
+    countEl.value = count;
+    document.getElementById('verify').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    runVerify();
 }
 
 loadStats();

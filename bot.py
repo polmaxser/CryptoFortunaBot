@@ -32,7 +32,7 @@ from urllib.parse import quote
 import aiohttp
 import asyncpg
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -2245,6 +2245,29 @@ async def public_history():
         }
         for r in rows
     ]
+
+
+@app.get("/api/verify")
+async def verify_draw(block: int, count: int):
+    """Public fairness check: fetches the real hash of `block` from BSC and
+    runs the exact same `hash % count` calculation used to pick every
+    round's winner, so anyone can reproduce a result independently."""
+    if count < 1:
+        raise HTTPException(400, "count must be at least 1")
+    if block < 1:
+        raise HTTPException(400, "block must be a positive number")
+
+    block_hash = await bsc_get_block_hash(block)
+    if not block_hash:
+        raise HTTPException(404, "Block not found — it may not be mined yet")
+
+    winner_ticket = (int(block_hash, 16) % count) + 1
+    return {
+        "block": block,
+        "count": count,
+        "block_hash": block_hash,
+        "winner_ticket": winner_ticket,
+    }
 
 
 _OG_FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "fonts", "DejaVuSans.ttf")
