@@ -21,7 +21,6 @@ FIX LIST vs v2.0:
 import os
 import re
 import io
-import random
 import logging
 import asyncio
 import hashlib
@@ -591,7 +590,8 @@ T: dict[str, dict[str, str]] = {
             "🎟 Rounds joined: *{joined}*\n"
             "🏆 Rounds won: *{wins}*\n"
             "💰 Total winnings: *{winnings} USDT*\n"
-            "💸 Total contributed: *{spent} USDT*\n\n"
+            "💸 Total contributed: *{spent} USDT*\n"
+            "🔥 Current streak: *{streak}* round\\(s\\) in a row\n\n"
             "🔗 Friends invited: *{referrals}*\n"
             "🎁 Free tickets available: *{free}*"
         ),
@@ -600,11 +600,21 @@ T: dict[str, dict[str, str]] = {
             "🎟 Раундов сыграно: *{joined}*\n"
             "🏆 Раундов выиграно: *{wins}*\n"
             "💰 Всего выиграно: *{winnings} USDT*\n"
-            "💸 Всего внесено: *{spent} USDT*\n\n"
+            "💸 Всего внесено: *{spent} USDT*\n"
+            "🔥 Текущий стрик: *{streak}* раунд\\(ов\\) подряд\n\n"
             "🔗 Приглашено друзей: *{referrals}*\n"
             "🎁 Доступно бесплатных билетов: *{free}*"
         ),
     },
+    "profile_badges": {
+        "en": "\n\n🏅 *Badges:* {badges}",
+        "ru": "\n\n🏅 *Значки:* {badges}",
+    },
+    "badge_legend":     {"en": "👑 Legend (3\\+ wins)",       "ru": "👑 Легенда (3\\+ побед)"},
+    "badge_winner":     {"en": "🏆 Winner",                   "ru": "🏆 Победитель"},
+    "badge_streak":     {"en": "🔥 On a roll (3\\+ streak)",  "ru": "🔥 На волне (стрик 3\\+)"},
+    "badge_whale":      {"en": "🐋 Whale",                    "ru": "🐋 Кит"},
+    "badge_ambassador": {"en": "🤝 Ambassador",                "ru": "🤝 Амбассадор"},
     "referral_reward_earned": {
         "en": (
             "🎉 *Referral reward\\!*\n\n"
@@ -683,6 +693,15 @@ CREATE TABLE IF NOT EXISTS referral_sources (
     campaign   TEXT    DEFAULT 'direct',
     invited_by BIGINT,
     created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Persists who was in each completed round (participants itself is wiped
+-- after every draw) so streaks — consecutive rounds played — can be
+-- computed later.
+CREATE TABLE IF NOT EXISTS round_participants (
+    round_number INTEGER NOT NULL,
+    telegram_id  BIGINT  NOT NULL,
+    PRIMARY KEY (round_number, telegram_id)
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
@@ -779,6 +798,38 @@ async def get_leaderboard_rows(conn, limit: int = 10):
         """,
         limit,
     )
+
+
+async def get_current_streak(conn, uid: int) -> int:
+    """How many of the most recent rounds (in a row, most recent first) this
+    user played. Breaks on the first round they sat out."""
+    recent = [r["round_number"] for r in await conn.fetch(
+        "SELECT round_number FROM draw_history ORDER BY round_number DESC LIMIT 50"
+    )]
+    played = {r["round_number"] for r in await conn.fetch(
+        "SELECT round_number FROM round_participants WHERE telegram_id=$1", uid
+    )}
+    streak = 0
+    for rn in recent:
+        if rn not in played:
+            break
+        streak += 1
+    return streak
+
+
+def get_badges(lang: str, *, wins: int, streak: int, spent: float, referrals: int) -> list[str]:
+    badges = []
+    if wins >= 3:
+        badges.append(t("badge_legend", lang))
+    elif wins >= 1:
+        badges.append(t("badge_winner", lang))
+    if streak >= 3:
+        badges.append(t("badge_streak", lang))
+    if spent >= ENTRY_FEE * 20:
+        badges.append(t("badge_whale", lang))
+    if referrals >= REFERRALS_PER_FREE_TICKET:
+        badges.append(t("badge_ambassador", lang))
+    return badges
 
 
 async def grant_referral_reward(conn, referred_uid: int) -> None:
@@ -1459,7 +1510,10 @@ async def run_full_draw() -> None:
             participants  = [f"{r['ticket_number']}. {r['username']}" for r in rows]
             paid_count    = sum(1 for r in rows if not r["is_free"])
             ticket_to_uid = {r["ticket_number"]: r["telegram_id"] for r in rows}
-            round_number  = random.randint(1000, 9999)
+            async with db_pool.acquire() as conn:
+                round_number = (await conn.fetchval(
+                    "SELECT COALESCE(MAX(round_number), 0) FROM draw_history"
+                )) + 1
             current_block = await bsc_get_current_block()
 
             if not current_block:
@@ -1488,6 +1542,11 @@ async def run_full_draw() -> None:
                         round_number, len(participants), bank,
                         winner_uname, winner_ticket, prize,
                         bank * 0.10, target_block, "see channel post", winner_uid,
+                    )
+                    await conn.executemany(
+                        "INSERT INTO round_participants (round_number, telegram_id)"
+                        " VALUES ($1,$2) ON CONFLICT DO NOTHING",
+                        [(round_number, r["telegram_id"]) for r in rows],
                     )
                     await conn.execute("DELETE FROM participants")
                     log.info("🏆 Draw #%d done — winner @%s ticket #%d",
@@ -1790,13 +1849,20 @@ async def handle_profile(message: Message) -> None:
         user_row = await conn.fetchrow(
             "SELECT referral_count, free_tickets FROM users WHERE telegram_id=$1", uid
         )
-    await message.answer(
-        t("profile_info", lang,
-          joined=joined, wins=wins,
-          winnings=esc(f"{float(winnings):.2f}"), spent=esc(f"{float(spent):.2f}"),
-          referrals=user_row["referral_count"] if user_row else 0,
-          free=user_row["free_tickets"] if user_row else 0),
-    )
+        streak = await get_current_streak(conn, uid)
+
+    referrals = user_row["referral_count"] if user_row else 0
+    text = t("profile_info", lang,
+             joined=joined, wins=wins,
+             winnings=esc(f"{float(winnings):.2f}"), spent=esc(f"{float(spent):.2f}"),
+             streak=streak, referrals=referrals,
+             free=user_row["free_tickets"] if user_row else 0)
+
+    badges = get_badges(lang, wins=wins, streak=streak, spent=float(spent), referrals=referrals)
+    if badges:
+        text += t("profile_badges", lang, badges="  ".join(badges))
+
+    await message.answer(text)
 
 
 # ── /top ──────────────────────────────────────────────────────
