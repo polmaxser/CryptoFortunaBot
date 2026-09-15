@@ -626,7 +626,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS pending_payments (
     telegram_id BIGINT        PRIMARY KEY,
-    amount      NUMERIC(20,6) NOT NULL UNIQUE,
+    amount      NUMERIC(20,6) NOT NULL,
     created_at  TIMESTAMPTZ   DEFAULT NOW()
 );
 
@@ -662,6 +662,12 @@ ALTER TABLE draw_history ADD COLUMN IF NOT EXISTS winner_telegram_id BIGINT;
 ALTER TABLE pending_payments ADD COLUMN IF NOT EXISTS reminded_at TIMESTAMPTZ;
 ALTER TABLE pending_payments ALTER COLUMN amount TYPE NUMERIC(20,8);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reminders_enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_address TEXT;
+-- Everyone now pays the same fixed ENTRY_FEE (fairness) — payments are
+-- matched by sender wallet instead of a per-user unique amount, so the
+-- old UNIQUE constraint on amount (which only fit one payer per value)
+-- must go for existing databases created before this change.
+ALTER TABLE pending_payments DROP CONSTRAINT IF EXISTS pending_payments_amount_key;
 """
 
 
@@ -916,11 +922,13 @@ async def bsc_verify_usdt_payment(
     txid: str,
     expected_address: str = WALLET_ADDRESS,
     expected_amount: float = ENTRY_FEE,
-) -> tuple[bool, str]:
+) -> tuple[bool, str, str | None]:
     """
     Verify USDT BEP-20 transfer on BSC.
     3 attempts, 10 / 20 / 30 s back-off (all async — non-blocking).
-    Returns (success, message).
+    Returns (success, message, sender_address) — sender_address is the
+    on-chain `from` of the matched transfer, used to bind a wallet to the
+    Telegram user for automatic detection on future rounds.
     """
     receipt_payload = {
         "jsonrpc": "2.0", "method": "eth_getTransactionReceipt",
@@ -937,14 +945,14 @@ async def bsc_verify_usdt_payment(
                     if r.status != 200:
                         if attempt < 3:
                             continue
-                        return False, "BSC API unreachable"
+                        return False, "BSC API unreachable", None
                     data = await r.json()
 
             receipt = data.get("result") or {}
             if not receipt:
                 if attempt < 3:
                     continue
-                return False, "Transaction not found or not yet confirmed"
+                return False, "Transaction not found or not yet confirmed", None
 
             for log_entry in receipt.get("logs", []):
                 if log_entry.get("address", "").lower() != USDT_CONTRACT.lower():
@@ -955,42 +963,30 @@ async def bsc_verify_usdt_payment(
                 to_addr = "0x" + topics[2][2:][-40:]
                 if to_addr.lower() != expected_address.lower():
                     continue
+                from_addr = ("0x" + topics[1][2:][-40:]).lower()
                 amount = int(log_entry.get("data", "0x0"), 16) / 10**18
                 if amount >= expected_amount:
-                    return True, f"{amount:.4f} USDT"
-                return False, esc(f"Amount too low: {amount:.4f} USDT (need {expected_amount})")
+                    return True, f"{amount:.4f} USDT", from_addr
+                return (False,
+                        esc(f"Amount too low: {amount:.4f} USDT (need {expected_amount})"),
+                        None)
 
             if attempt < 3:
                 continue
-            return False, "No matching USDT transfer found in this transaction"
+            return False, "No matching USDT transfer found in this transaction", None
 
         except asyncio.CancelledError:
             raise                      # propagate cancellation cleanly
         except asyncio.TimeoutError:
             if attempt < 3:
                 continue
-            return False, "BSC API timeout"
+            return False, "BSC API timeout", None
         except Exception as exc:
             if attempt < 3:
                 continue
-            return False, esc(str(exc))
+            return False, esc(str(exc)), None
 
-    return False, "Verification failed after 3 attempts"
-
-
-async def _generate_unique_amount(conn) -> float:
-    """A near-invisible offset (< 1 cent, e.g. 5.00437182) unique to one pending
-    payer, so incoming transfers can be auto-matched without a memo/TXID paste.
-    Kept in the 7th-8th decimal so the fee still reads as "5 USDT" at a glance."""
-    for _ in range(20):
-        offset = random.randint(1, 999999)
-        amount = round(ENTRY_FEE + offset / 10**8, 8)
-        taken = await conn.fetchval(
-            "SELECT 1 FROM pending_payments WHERE amount = $1", amount
-        )
-        if not taken:
-            return amount
-    raise RuntimeError("Could not allocate a unique payment amount")
+    return False, "Verification failed after 3 attempts", None
 
 
 # ══════════════════════════════════════════════════════════════
@@ -998,9 +994,12 @@ async def _generate_unique_amount(conn) -> float:
 # ══════════════════════════════════════════════════════════════
 async def payment_watcher() -> None:
     """
-    Polls the wallet for incoming USDT transfers and auto-credits whichever
-    user was assigned that exact amount via 🎟 Participate. Manual TXID paste
-    (see handle_txid below) remains available as a fallback.
+    Polls the wallet for incoming USDT transfers and auto-credits the pending
+    user whose bound wallet (users.wallet_address, captured the first time
+    they confirm via TXID — see _verify_task) sent this transfer. Everyone
+    pays the exact same ENTRY_FEE — no per-user amount offset — so a first-time
+    payer with no bound wallet yet can't be auto-matched and uses manual TXID
+    paste (handle_txid) instead, which also binds their wallet for next time.
     """
     global _last_scanned_block
     while True:
@@ -1023,13 +1022,21 @@ async def payment_watcher() -> None:
                 txid = entry.get("transactionHash")
                 if not txid:
                     continue
-                amount = round(int(entry.get("data", "0x0"), 16) / 10**18, 8)
+                amount = round(int(entry.get("data", "0x0"), 16) / 10**18, 2)
+                if amount < ENTRY_FEE:
+                    continue
+                topics = entry.get("topics", [])
+                if len(topics) < 2:
+                    continue
+                from_addr = ("0x" + topics[1][2:][-40:]).lower()
 
                 async with db_pool.acquire() as conn:
                     if await conn.fetchval("SELECT 1 FROM transactions WHERE txid=$1", txid):
                         continue
                     pending = await conn.fetchrow(
-                        "SELECT telegram_id FROM pending_payments WHERE amount = $1", amount
+                        "SELECT pp.telegram_id FROM pending_payments pp "
+                        "JOIN users u ON u.telegram_id = pp.telegram_id "
+                        "WHERE LOWER(u.wallet_address) = $1", from_addr
                     )
                     if not pending:
                         continue
@@ -1125,7 +1132,7 @@ async def abandoned_payment_reminder() -> None:
                     await bot.send_message(
                         uid,
                         t("participate_reminder", lang,
-                          fee=esc(f"{float(row['amount']):.8f}"), wallet=WALLET_ADDRESS),
+                          fee=esc(f"{float(row['amount']):.2f}"), wallet=WALLET_ADDRESS),
                     )
                 except Exception as exc:
                     log.warning("Could not send reminder to %s: %s", uid, exc)
@@ -1146,7 +1153,7 @@ async def _verify_task(uid: int, txid: str, reply_to: Message, lang: str) -> Non
     Cancellation (via /cancel) is handled cleanly.
     """
     try:
-        success, msg = await bsc_verify_usdt_payment(txid)
+        success, msg, from_addr = await bsc_verify_usdt_payment(txid)
     except asyncio.CancelledError:
         # /cancel was issued — message already sent by cmd_cancel
         return
@@ -1191,6 +1198,12 @@ async def _verify_task(uid: int, txid: str, reply_to: Message, lang: str) -> Non
 
             await conn.execute("DELETE FROM pending_payments WHERE telegram_id = $1", uid)
             await grant_referral_reward(conn, uid)
+            if from_addr:
+                # Bind the sender wallet so future rounds auto-detect this
+                # user's payment without needing another TXID paste.
+                await conn.execute(
+                    "UPDATE users SET wallet_address=$2 WHERE telegram_id=$1", uid, from_addr
+                )
 
         await reply_to.answer(
             t("txid_success", lang,
@@ -1496,24 +1509,20 @@ async def handle_participate(message: Message) -> None:
             await message.answer(t("round_full", lang, limit=PARTICIPANT_LIMIT))
             return
 
-        amount = await conn.fetchval(
-            "SELECT amount FROM pending_payments WHERE telegram_id=$1", uid
+        # Everyone pays the exact same ENTRY_FEE — no per-user offset, so it's
+        # fair. Automatic detection (payment_watcher) works once this user's
+        # wallet is bound (happens the first time they confirm via TXID);
+        # until then — and always, as a fallback — they can paste the TXID.
+        await conn.execute(
+            "INSERT INTO pending_payments (telegram_id, amount) VALUES ($1,$2) "
+            "ON CONFLICT (telegram_id) DO UPDATE SET created_at=NOW()",
+            uid, ENTRY_FEE,
         )
-        # Regenerate if missing, or left over from before the offset was
-        # shrunk to under 1 cent (old scheme could drift up to ~1 USDT).
-        stale = amount is not None and not (0 < float(amount) - ENTRY_FEE <= 0.01)
-        if amount is None or stale:
-            amount = await _generate_unique_amount(conn)
-            await conn.execute(
-                "INSERT INTO pending_payments (telegram_id, amount) VALUES ($1,$2) "
-                "ON CONFLICT (telegram_id) DO UPDATE SET amount=$2, created_at=NOW()",
-                uid, amount,
-            )
 
     # Первое сообщение — инструкция (без адреса)
     await message.answer(
         t("participate_info", lang,
-          fee=esc(f"{amount:.8f}"), wallet=WALLET_ADDRESS,
+          fee=esc(f"{ENTRY_FEE:.2f}"), wallet=WALLET_ADDRESS,
           count=count, limit=PARTICIPANT_LIMIT)
     )
 
@@ -1522,7 +1531,7 @@ async def handle_participate(message: Message) -> None:
     await message.answer(f"`{WALLET_ADDRESS}`", parse_mode="MarkdownV2")
 
     # Третье сообщение — ТОЛЬКО точная сумма, без лишнего текста
-    await message.answer(f"`{amount:.8f}`", parse_mode="MarkdownV2")
+    await message.answer(f"`{ENTRY_FEE:.2f}`", parse_mode="MarkdownV2")
 
 
 # ── 💰 Pool ───────────────────────────────────────────────────
